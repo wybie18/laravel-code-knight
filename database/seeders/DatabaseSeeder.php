@@ -32,32 +32,32 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('qwe1234!')
         ]);
 
-        // UserRole::create([
-        //     'name' => 'admin',
-        // ]);
-        // UserRole::create([
-        //     'name' => 'student',
-        // ]);
+        UserRole::create([
+            'name' => 'admin',
+        ]);
+        UserRole::create([
+            'name' => 'student',
+        ]);
 
-        // CourseCategory::create([
-        //     'name' => 'Programming',
-        // ]);
+        CourseCategory::create([
+            'name' => 'Programming',
+        ]);
 
-        // CourseCategory::create([
-        //     'name' => 'Cybersecurity',
-        // ]);
+        CourseCategory::create([
+            'name' => 'Cybersecurity',
+        ]);
 
-        // Difficulty::create([
-        //     'name' => 'Beginner',
-        // ]);
+        Difficulty::create([
+            'name' => 'Beginner',
+        ]);
 
-        // Difficulty::create([
-        //     'name' => 'Intermediate',
-        // ]);
+        Difficulty::create([
+            'name' => 'Intermediate',
+        ]);
 
-        // Difficulty::create([
-        //     'name' => 'Advanced',
-        // ]);
+        Difficulty::create([
+            'name' => 'Advanced',
+        ]);
         
     }
 }
