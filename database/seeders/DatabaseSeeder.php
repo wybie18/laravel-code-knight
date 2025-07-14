@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\UserRole;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -22,32 +23,41 @@ class DatabaseSeeder extends Seeder
         //     'name' => 'Test User',
         //     'email' => 'test@example.com',
         // ]);
-        UserRole::create([
-            'name' => 'admin',
-        ]);
-        UserRole::create([
-            'name' => 'student',
+
+        User::factory()->create([
+            'username' => 'Administrator',
+            'first_name' => 'admin',
+            'last_name' => 'admin',
+            'email' => 'admin@admin.com',
+            'password' => Hash::make('qwe1234!')
         ]);
 
-        CourseCategory::create([
-            'name' => 'Programming',
-        ]);
+        // UserRole::create([
+        //     'name' => 'admin',
+        // ]);
+        // UserRole::create([
+        //     'name' => 'student',
+        // ]);
 
-        CourseCategory::create([
-            'name' => 'Cybersecurity',
-        ]);
+        // CourseCategory::create([
+        //     'name' => 'Programming',
+        // ]);
 
-        Difficulty::create([
-            'name' => 'Beginner',
-        ]);
+        // CourseCategory::create([
+        //     'name' => 'Cybersecurity',
+        // ]);
 
-        Difficulty::create([
-            'name' => 'Intermediate',
-        ]);
+        // Difficulty::create([
+        //     'name' => 'Beginner',
+        // ]);
 
-        Difficulty::create([
-            'name' => 'Advanced',
-        ]);
+        // Difficulty::create([
+        //     'name' => 'Intermediate',
+        // ]);
+
+        // Difficulty::create([
+        //     'name' => 'Advanced',
+        // ]);
         
     }
 }
