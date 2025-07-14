@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Course;
 use App\Models\CourseCategory;
 use Illuminate\Http\Request;
 
@@ -29,6 +28,10 @@ class CourseCategoryController extends Controller
             'color' => 'nullable|string|max:7',
         ]);
 
+        if(!$request->user()->tokenCan('admin:*')){
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
         $courseCategory = CourseCategory::create($validated);
 
         return response()->json([
@@ -41,8 +44,9 @@ class CourseCategoryController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(CourseCategory $courseCategory)
+    public function show(string $id)
     {
+        $courseCategory = CourseCategory::findOrFail($id);
         return response()->json([
             'success' => true,
             'data' => $courseCategory->loadCount('courses'),
@@ -52,12 +56,17 @@ class CourseCategoryController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, CourseCategory $courseCategory)
+    public function update(Request $request, string $id)
     {
+        $courseCategory = CourseCategory::findOrFail($id);
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:course_categories,name,' . $courseCategory->id,
             'color' => 'nullable|string|max:7',
         ]);
+
+        if(!$request->user()->tokenCan('admin:*')){
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
 
         $courseCategory->update($validated);
 
@@ -71,8 +80,13 @@ class CourseCategoryController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(CourseCategory $courseCategory)
+    public function destroy(string $id)
     {
+        if(!request()->user()->tokenCan('admin:*')){
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+        
+        $courseCategory = CourseCategory::findOrFail($id);
         $courseCategory->delete();
 
         return response()->json(null, 204);
