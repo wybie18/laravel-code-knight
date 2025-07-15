@@ -23,6 +23,10 @@ class SkillTagController extends Controller
      */
     public function store(Request $request)
     {
+        if(!$request->user()->tokenCan('admin:*')){
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:skill_tags,name',
             'color' => 'nullable|string|max:7',
@@ -40,8 +44,9 @@ class SkillTagController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(SkillTag $skillTag)
+    public function show(string $id)
     {
+        $skillTag = SkillTag::findOrFail($id);
         return response()->json([
             'success' => true,
             'data' => $skillTag->loadCount('courses'),
@@ -51,8 +56,14 @@ class SkillTagController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, SkillTag $skillTag)
+    public function update(Request $request, string $id)
     {
+        if(!$request->user()->tokenCan('admin:*')){
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
+        $skillTag = SkillTag::findOrFail($id);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:skill_tags,name,' . $skillTag->id,
             'color' => 'nullable|string|max:7',
@@ -70,8 +81,13 @@ class SkillTagController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(SkillTag $skillTag)
+    public function destroy(string $id)
     {
+        if(!request()->user()->tokenCan('admin:*')){
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
+        $skillTag = SkillTag::findOrFail($id);
         $skillTag->delete();
 
         return response()->json(null, 204);
