@@ -24,6 +24,11 @@ class AchievementTypeController extends Controller
      */
     public function store(Request $request)
     {
+
+        if(!$request->user()->tokenCan('admin:*')){
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:achievement_types,name',
             'color' => 'nullable|string|max:7',
@@ -41,8 +46,9 @@ class AchievementTypeController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(AchievementType $achievementType)
+    public function show(string $id)
     {
+        $achievementType = AchievementType::findOrFail($id);
         return response()->json([
             'success' => true,
             'data' => $achievementType->loadCount('achievements'),
@@ -52,8 +58,14 @@ class AchievementTypeController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, AchievementType $achievementType)
+    public function update(Request $request, string $id)
     {
+        if(!$request->user()->tokenCan('admin:*')){
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
+        $achievementType = AchievementType::findOrFail($id);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:achievement_types,name,' . $achievementType->id,
             'color' => 'nullable|string|max:7',
@@ -71,8 +83,14 @@ class AchievementTypeController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(AchievementType $achievementType)
+    public function destroy(string $id)
     {
+        if(!request()->user()->tokenCan('admin:*')){
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
+        $achievementType = AchievementType::findOrFail($id);
+
         $achievementType->delete();
 
         return response()->json(null, 204);
