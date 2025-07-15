@@ -24,6 +24,10 @@ class BadgeCategoryController extends Controller
      */
     public function store(Request $request)
     {
+        if(!$request->user()->tokenCan('admin:*')){
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:badge_categories,name',
         ]);
@@ -40,8 +44,9 @@ class BadgeCategoryController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(BadgeCategory $badgeCategory)
+    public function show(string $id)
     {
+        $badgeCategory = BadgeCategory::findOrFail($id);
         return response()->json([
             'success' => true,
             'data' => $badgeCategory->loadCount('badges'),
@@ -51,8 +56,14 @@ class BadgeCategoryController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, BadgeCategory $badgeCategory)
+    public function update(Request $request, string $id)
     {
+        if(!$request->user()->tokenCan('admin:*')){
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
+        $badgeCategory = BadgeCategory::findOrFail($id);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:badge_categories,name,' . $badgeCategory->id
         ]);
@@ -69,8 +80,13 @@ class BadgeCategoryController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(BadgeCategory $badgeCategory)
+    public function destroy(string $id)
     {
+        if(!request()->user()->tokenCan('admin:*')){
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
+        $badgeCategory = BadgeCategory::findOrFail($id);
         $badgeCategory->delete();
 
         return response()->json(null, 204);
