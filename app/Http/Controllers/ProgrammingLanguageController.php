@@ -23,9 +23,13 @@ class ProgrammingLanguageController extends Controller
      */
     public function store(Request $request)
     {
+        if(!$request->user()->tokenCan('admin:*')){
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:programming_languages,name',
-            'langueage_id' => 'required|integer|unique:programming_languages,langueage_id',
+            'language_id' => 'required|integer|unique:programming_languages,language_id',
             'version' => 'nullable|string|max:50'
         ]);
 
@@ -41,8 +45,9 @@ class ProgrammingLanguageController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(ProgrammingLanguage $programmingLanguage)
+    public function show(string $id)
     {
+        $programmingLanguage = ProgrammingLanguage::findOrFail($id);
         return response()->json([
             'success' => true,
             'data' => $programmingLanguage,
@@ -52,11 +57,17 @@ class ProgrammingLanguageController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, ProgrammingLanguage $programmingLanguage)
+    public function update(Request $request, string $id)
     {
+        if(!$request->user()->tokenCan('admin:*')){
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
+        $programmingLanguage = ProgrammingLanguage::findOrFail($id);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:programming_languages,name,' . $programmingLanguage->id,
-            'langueage_id' => 'required|integer|unique:programming_languages,langueage_id,' . $programmingLanguage->id,
+            'language_id' => 'required|integer|unique:programming_languages,language_id,' . $programmingLanguage->id,
             'version' => 'nullable|string|max:50'
         ]);
 
@@ -72,8 +83,13 @@ class ProgrammingLanguageController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(ProgrammingLanguage $programmingLanguage)
+    public function destroy(string $id)
     {
+        if(!request()->user()->tokenCan('admin:*')){
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
+        $programmingLanguage = ProgrammingLanguage::findOrFail($id);
         $programmingLanguage->delete();
 
         return response()->json([
