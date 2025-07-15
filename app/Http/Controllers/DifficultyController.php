@@ -23,6 +23,10 @@ class DifficultyController extends Controller
      */
     public function store(Request $request)
     {
+        if(!$request->user()->tokenCan('admin:*')){
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255'
         ]);
@@ -54,6 +58,10 @@ class DifficultyController extends Controller
      */
     public function update(Request $request, string $id)
     {
+        if(!$request->user()->tokenCan('admin:*')){
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
         $difficulty = Difficulty::findOrFail($id);
 
         $validated = $request->validate([
@@ -74,6 +82,10 @@ class DifficultyController extends Controller
      */
     public function destroy(string $id)
     {
+        if(!request()->user()->tokenCan('admin:*')){
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
         $difficulty = Difficulty::findOrFail($id);
         $difficulty->delete();
 
