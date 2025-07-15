@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('programming_languages', function (Blueprint $table) {
             $table->id();
             $table->string('name')->unique();
-            $table->integer('langueage_id')->unique()->comment('Unique identifier for the programming language, used for integration with external systems');
+            $table->integer('language_id')->unique()->comment('Unique identifier for the programming language, used for integration with external systems');
             $table->string('version')->nullable();
             $table->timestamps();
         });
