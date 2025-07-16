@@ -1,7 +1,7 @@
 <?php
-
 namespace App\Http\Controllers;
 
+use App\Http\Resources\CourseCategoryResource;
 use App\Models\CourseCategory;
 use Illuminate\Http\Request;
 
@@ -21,17 +21,15 @@ class CourseCategoryController extends Controller
             });
         }
 
-        $sortField = request("sort_field", "created_at");
+        $sortField     = request("sort_field", "created_at");
         $sortDirection = request("sort_direction", "desc");
 
         $query->orderBy($sortField, $sortDirection);
 
         $courseCategory = $query->withCount('courses')->paginate(15);
 
-        return response()->json([
-            'success' => true,
-            'data' => $courseCategory,
-        ]);
+        return CourseCategoryResource::collection($courseCategory)->additional([
+            'success' => true]);
     }
 
     /**
@@ -40,21 +38,21 @@ class CourseCategoryController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:course_categories,name',
+            'name'  => 'required|string|max:255|unique:course_categories,name',
             'color' => 'nullable|string|max:7',
         ]);
 
-        if(!$request->user()->tokenCan('admin:*')){
+        if (! $request->user()->tokenCan('admin:*')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
         $courseCategory = CourseCategory::create($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Course category created successfully.',
-            'data' => $courseCategory,
-        ], 201);
+        $courseCategory->loadCount('courses');
+        return (new CourseCategoryResource($courseCategory))
+            ->additional([
+                'success' => true,
+                'message' => 'Course category created successfully.',
+            ]);
     }
 
     /**
@@ -62,11 +60,11 @@ class CourseCategoryController extends Controller
      */
     public function show(string $id)
     {
-        $courseCategory = CourseCategory::findOrFail($id);
-        return response()->json([
-            'success' => true,
-            'data' => $courseCategory->loadCount('courses'),
-        ]);
+        $courseCategory = CourseCategory::findOrFail($id)->loadCount('courses');
+        return (new CourseCategoryResource($courseCategory))
+            ->additional([
+                'success' => true,
+            ]);
     }
 
     /**
@@ -75,22 +73,22 @@ class CourseCategoryController extends Controller
     public function update(Request $request, string $id)
     {
         $courseCategory = CourseCategory::findOrFail($id);
-        $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:course_categories,name,' . $courseCategory->id,
+        $validated      = $request->validate([
+            'name'  => 'required|string|max:255|unique:course_categories,name,' . $courseCategory->id,
             'color' => 'nullable|string|max:7',
         ]);
 
-        if(!$request->user()->tokenCan('admin:*')){
+        if (! $request->user()->tokenCan('admin:*')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
         $courseCategory->update($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Course category updated successfully.',
-            'data' => $courseCategory,
-        ]);
+        $courseCategory->loadCount('courses');
+        return (new CourseCategoryResource($courseCategory))
+            ->additional([
+                'success' => true,
+                'message' => 'Course category updated successfully.',
+            ]);
     }
 
     /**
@@ -98,10 +96,10 @@ class CourseCategoryController extends Controller
      */
     public function destroy(string $id)
     {
-        if(!request()->user()->tokenCan('admin:*')){
+        if (! request()->user()->tokenCan('admin:*')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
-        
+
         $courseCategory = CourseCategory::findOrFail($id);
         $courseCategory->delete();
 
