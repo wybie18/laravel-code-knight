@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\SkillTagResource;
 use App\Models\SkillTag;
 use Illuminate\Http\Request;
 
@@ -27,10 +28,8 @@ class SkillTagController extends Controller
         $query->orderBy($sortField, $sortDirection);
 
         $skillTags = $query->withCount('courses')->paginate(15);
-        return response()->json([
-            'success' => true,
-            'data' => $skillTags,
-        ]);
+        return SkillTagResource::collection($skillTags)->additional([
+            'success' => true]);
     }
 
     /**
@@ -48,12 +47,12 @@ class SkillTagController extends Controller
         ]);
 
         $skillTag = SkillTag::create($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Skill tag created successfully.',
-            'data' => $skillTag,
-        ], 201);
+        $skillTag->loadCount('courses');
+        return (new SkillTagResource($skillTag))
+            ->additional([
+                'success' => true,
+                'message' => 'Skill tag created successfully.',
+            ]);
     }
 
     /**
@@ -61,11 +60,11 @@ class SkillTagController extends Controller
      */
     public function show(string $id)
     {
-        $skillTag = SkillTag::findOrFail($id);
-        return response()->json([
-            'success' => true,
-            'data' => $skillTag->loadCount('courses'),
-        ], 200);
+        $skillTag = SkillTag::findOrFail($id)->loadCount('courses');
+        return (new SkillTagResource($skillTag))
+            ->additional([
+                'success' => true,
+            ]);
     }
 
     /**
@@ -85,12 +84,12 @@ class SkillTagController extends Controller
         ]);
 
         $skillTag->update($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Skill tag updated successfully.',
-            'data' => $skillTag,
-        ], 200);
+        $skillTag->loadCount('courses');
+        return (new SkillTagResource($skillTag))
+            ->additional([
+                'success' => true,
+                'message' => 'Skill tag updated successfully.',
+            ]);
     }
 
     /**
