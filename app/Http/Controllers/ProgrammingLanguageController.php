@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Models\ProgrammingLanguage;
@@ -10,11 +9,27 @@ class ProgrammingLanguageController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $query = ProgrammingLanguage::query();
+
+        if ($request->has('search')) {
+            $searchTerm = $request->input('search');
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%")
+                    ->orWhere('version', 'like', "%{$searchTerm}");
+            });
+        }
+
+        $sortField     = request("sort_field", "created_at");
+        $sortDirection = request("sort_direction", "desc");
+
+        $query->orderBy($sortField, $sortDirection);
+
+        $programmingLanguages = $query->paginate(15);
         return response()->json([
             'success' => true,
-            'data' => ProgrammingLanguage::all(),
+            'data'    => $programmingLanguages,
         ], 200);
     }
 
@@ -23,14 +38,14 @@ class ProgrammingLanguageController extends Controller
      */
     public function store(Request $request)
     {
-        if(!$request->user()->tokenCan('admin:*')){
+        if (! $request->user()->tokenCan('admin:*')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:programming_languages,name',
+            'name'        => 'required|string|max:255|unique:programming_languages,name',
             'language_id' => 'required|integer|unique:programming_languages,language_id',
-            'version' => 'nullable|string|max:50'
+            'version'     => 'nullable|string|max:50',
         ]);
 
         $programmingLanguage = ProgrammingLanguage::create($validated);
@@ -38,7 +53,7 @@ class ProgrammingLanguageController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Programming language created successfully.',
-            'data' => $programmingLanguage,
+            'data'    => $programmingLanguage,
         ], 201);
     }
 
@@ -50,7 +65,7 @@ class ProgrammingLanguageController extends Controller
         $programmingLanguage = ProgrammingLanguage::findOrFail($id);
         return response()->json([
             'success' => true,
-            'data' => $programmingLanguage,
+            'data'    => $programmingLanguage,
         ], 200);
     }
 
@@ -59,16 +74,16 @@ class ProgrammingLanguageController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        if(!$request->user()->tokenCan('admin:*')){
+        if (! $request->user()->tokenCan('admin:*')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
         $programmingLanguage = ProgrammingLanguage::findOrFail($id);
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:programming_languages,name,' . $programmingLanguage->id,
+            'name'        => 'required|string|max:255|unique:programming_languages,name,' . $programmingLanguage->id,
             'language_id' => 'required|integer|unique:programming_languages,language_id,' . $programmingLanguage->id,
-            'version' => 'nullable|string|max:50'
+            'version'     => 'nullable|string|max:50',
         ]);
 
         $programmingLanguage->update($validated);
@@ -76,7 +91,7 @@ class ProgrammingLanguageController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Programming language updated successfully.',
-            'data' => $programmingLanguage,
+            'data'    => $programmingLanguage,
         ], 200);
     }
 
@@ -85,7 +100,7 @@ class ProgrammingLanguageController extends Controller
      */
     public function destroy(string $id)
     {
-        if(!request()->user()->tokenCan('admin:*')){
+        if (! request()->user()->tokenCan('admin:*')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
