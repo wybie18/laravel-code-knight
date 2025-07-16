@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Http\Resources\ProgrammingLanguageResource;
 use App\Models\ProgrammingLanguage;
 use Illuminate\Http\Request;
 
@@ -27,10 +28,8 @@ class ProgrammingLanguageController extends Controller
         $query->orderBy($sortField, $sortDirection);
 
         $programmingLanguages = $query->paginate(15);
-        return response()->json([
-            'success' => true,
-            'data'    => $programmingLanguages,
-        ], 200);
+        return ProgrammingLanguageResource::collection($programmingLanguages)->additional([
+            'success' => true]);
     }
 
     /**
@@ -49,12 +48,11 @@ class ProgrammingLanguageController extends Controller
         ]);
 
         $programmingLanguage = ProgrammingLanguage::create($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Programming language created successfully.',
-            'data'    => $programmingLanguage,
-        ], 201);
+        return (new ProgrammingLanguageResource($programmingLanguage))
+            ->additional([
+                'success' => true,
+                'message' => 'Programming language created successfully.',
+            ]);
     }
 
     /**
@@ -63,10 +61,10 @@ class ProgrammingLanguageController extends Controller
     public function show(string $id)
     {
         $programmingLanguage = ProgrammingLanguage::findOrFail($id);
-        return response()->json([
-            'success' => true,
-            'data'    => $programmingLanguage,
-        ], 200);
+        return (new ProgrammingLanguageResource($programmingLanguage))
+            ->additional([
+                'success' => true
+            ]);
     }
 
     /**
@@ -88,11 +86,11 @@ class ProgrammingLanguageController extends Controller
 
         $programmingLanguage->update($validated);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Programming language updated successfully.',
-            'data'    => $programmingLanguage,
-        ], 200);
+        return (new ProgrammingLanguageResource($programmingLanguage))
+            ->additional([
+                'success' => true,
+                'message' => 'Programming language updated successfully.',
+            ]);
     }
 
     /**
