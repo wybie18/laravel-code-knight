@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\BadgeCategoryResource;
 use App\Models\Badge;
 use App\Models\BadgeCategory;
 use Illuminate\Http\Request;
@@ -28,10 +29,8 @@ class BadgeCategoryController extends Controller
         $query->orderBy($sortField, $sortDirection);
 
         $badgeCategory = $query->withCount('badges')->paginate(15);
-        return response()->json([
-            'success' => true,
-            'data' => $badgeCategory,
-        ], 200);
+        return BadgeCategoryResource::collection($badgeCategory)->additional([
+            'success' => true]);
     }
 
     /**
@@ -48,12 +47,13 @@ class BadgeCategoryController extends Controller
         ]);
 
         $badgeCategory = BadgeCategory::create($validated);
+        $badgeCategory->loadCount('badges');
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Badge category created successfully.',
-            'data' => $badgeCategory,
-        ], 201);
+        return (new BadgeCategoryResource($badgeCategory))
+            ->additional([
+                'success' => true,
+                'message' => 'Badge category created successfully.',
+            ]);
     }
 
     /**
@@ -61,11 +61,11 @@ class BadgeCategoryController extends Controller
      */
     public function show(string $id)
     {
-        $badgeCategory = BadgeCategory::findOrFail($id);
-        return response()->json([
-            'success' => true,
-            'data' => $badgeCategory->loadCount('badges'),
-        ], 200);
+        $badgeCategory = BadgeCategory::findOrFail($id)->loadCount('badges');
+        return (new BadgeCategoryResource($badgeCategory))
+            ->additional([
+                'success' => true,
+            ]);
     }
 
     /**
@@ -84,12 +84,13 @@ class BadgeCategoryController extends Controller
         ]);
 
         $badgeCategory->update($validated);
+        $badgeCategory->loadCount('badges');
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Badge category updated successfully.',
-            'data' => $badgeCategory,
-        ], 200);
+        return (new BadgeCategoryResource($badgeCategory))
+            ->additional([
+                'success' => true,
+                'message' => 'Badge category updated successfully.',
+            ]);
     }
 
     /**
