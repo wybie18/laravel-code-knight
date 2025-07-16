@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\AchievementTypeResource;
 use App\Models\AchievementType;
 use Illuminate\Http\Request;
 
@@ -27,10 +28,8 @@ class AchievementTypeController extends Controller
         $query->orderBy($sortField, $sortDirection);
 
         $achievementTypes = $query->withCount('achievements')->paginate(15);
-        return response()->json([
-            'success' => true,
-            'data' => $achievementTypes,
-        ]);
+        return AchievementTypeResource::collection($achievementTypes)->additional([
+            'success' => true]);
     }
 
 
@@ -50,12 +49,13 @@ class AchievementTypeController extends Controller
         ]);
 
         $achievementType = AchievementType::create($validated);
+        $achievementType->loadCount('achievements');
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Achievement type created successfully.',
-            'data' => $achievementType,
-        ], 201);
+        return (new AchievementTypeResource($achievementType))
+            ->additional([
+                'success' => true,
+                'message' => 'Achievement type created successfully.',
+            ]);
     }
 
     /**
@@ -63,11 +63,11 @@ class AchievementTypeController extends Controller
      */
     public function show(string $id)
     {
-        $achievementType = AchievementType::findOrFail($id);
-        return response()->json([
-            'success' => true,
-            'data' => $achievementType->loadCount('achievements'),
-        ], 200);
+        $achievementType = AchievementType::findOrFail($id)->loadCount('achievements');
+        return (new AchievementTypeResource($achievementType))
+            ->additional([
+                'success' => true,
+            ]);
     }
 
     /**
@@ -87,12 +87,13 @@ class AchievementTypeController extends Controller
         ]);
 
         $achievementType->update($validated);
+        $achievementType->loadCount('achievements');
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Achievement type updated successfully.',
-            'data' => $achievementType,
-        ], 200);
+        return (new AchievementTypeResource($achievementType))
+            ->additional([
+                'success' => true,
+                'message' => 'Achievement type updated successfully.',
+            ]);
     }
 
     /**
