@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Http\Resources\CtfCategoryResource;
 use App\Models\CtfCategory;
 use Illuminate\Http\Request;
 
@@ -27,10 +28,8 @@ class CtfCategoryController extends Controller
 
         $ctfCategory = $query->withCount('ctfChallenges')->paginate(15);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $ctfCategory,
-        ]);
+        return CtfCategoryResource::collection($ctfCategory)->additional([
+            'success' => true]);
     }
 
     /**
@@ -48,12 +47,13 @@ class CtfCategoryController extends Controller
         ]);
 
         $ctfCategory = CtfCategory::create($validated);
+        $ctfCategory->loadCount('ctfChallenges');
 
-        return response()->json([
-            'success' => true,
-            'message' => 'CTF category created successfully.',
-            'data'    => $ctfCategory,
-        ], 201);
+        return (new CtfCategoryResource($ctfCategory))
+            ->additional([
+                'success' => true,
+                'message' => 'CTF category created successfully.',
+            ]);
     }
 
     /**
@@ -61,11 +61,11 @@ class CtfCategoryController extends Controller
      */
     public function show(string $id)
     {
-        $ctfCategory = CtfCategory::findOrFail($id);
-        return response()->json([
-            'success' => true,
-            'data'    => $ctfCategory->loadCount('ctfChallenges'),
-        ], 200);
+        $ctfCategory = CtfCategory::findOrFail($id)->loadCount('ctfChallenges');
+        return (new CtfCategoryResource($ctfCategory))
+            ->additional([
+                'success' => true,
+            ]);
     }
 
     /**
@@ -85,12 +85,13 @@ class CtfCategoryController extends Controller
         ]);
 
         $ctfCategory->update($validated);
+        $ctfCategory->loadCount('ctfChallenges');
 
-        return response()->json([
-            'success' => true,
-            'message' => 'CTF category updated successfully.',
-            'data'    => $ctfCategory,
-        ], 200);
+        return (new CtfCategoryResource($ctfCategory))
+            ->additional([
+                'success' => true,
+                'message' => 'CTF category updated successfully.',
+            ]);
     }
 
     /**
