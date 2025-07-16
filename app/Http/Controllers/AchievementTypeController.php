@@ -10,11 +10,26 @@ class AchievementTypeController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $query = AchievementType::query();
+
+        if ($request->has('search')) {
+            $searchTerm = $request->input('search');
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        $sortField     = request("sort_field", "created_at");
+        $sortDirection = request("sort_direction", "desc");
+
+        $query->orderBy($sortField, $sortDirection);
+
+        $achievementTypes = $query->withCount('achievements')->paginate(15);
         return response()->json([
             'success' => true,
-            'data' => AchievementType::withCount('achievements')->get(),
+            'data' => $achievementTypes,
         ]);
     }
 
