@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Models\Difficulty;
@@ -10,11 +9,26 @@ class DifficultyController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $query = Difficulty::query();
+
+        if ($request->has('search')) {
+            $searchTerm = $request->input('search');
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        $sortField     = request("sort_field", "created_at");
+        $sortDirection = request("sort_direction", "desc");
+
+        $query->orderBy($sortField, $sortDirection);
+
+        $difficulties = $query->paginate(15);
         return response()->json([
             'success' => true,
-            'data' => Difficulty::all(),
+            'data'    => $difficulties,
         ], 200);
     }
 
@@ -23,12 +37,12 @@ class DifficultyController extends Controller
      */
     public function store(Request $request)
     {
-        if(!$request->user()->tokenCan('admin:*')){
+        if (! $request->user()->tokenCan('admin:*')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255'
+            'name' => 'required|string|max:255',
         ]);
 
         $difficulty = Difficulty::create($validated);
@@ -36,7 +50,7 @@ class DifficultyController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Difficulty created successfully.',
-            'data' => $difficulty,
+            'data'    => $difficulty,
         ], 201);
     }
 
@@ -49,7 +63,7 @@ class DifficultyController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $difficulty,
+            'data'    => $difficulty,
         ], 200);
     }
 
@@ -58,14 +72,14 @@ class DifficultyController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        if(!$request->user()->tokenCan('admin:*')){
+        if (! $request->user()->tokenCan('admin:*')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
         $difficulty = Difficulty::findOrFail($id);
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255'
+            'name' => 'required|string|max:255',
         ]);
 
         $difficulty->update($validated);
@@ -73,7 +87,7 @@ class DifficultyController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Difficulty updated successfully.',
-            'data' => $difficulty,
+            'data'    => $difficulty,
         ], 200);
     }
 
@@ -82,7 +96,7 @@ class DifficultyController extends Controller
      */
     public function destroy(string $id)
     {
-        if(!request()->user()->tokenCan('admin:*')){
+        if (! request()->user()->tokenCan('admin:*')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
