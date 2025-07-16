@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Models\CtfCategory;
@@ -10,11 +9,27 @@ class CtfCategoryController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $query = CtfCategory::query();
+
+        if ($request->has('search')) {
+            $searchTerm = $request->input('search');
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        $sortField     = request("sort_field", "created_at");
+        $sortDirection = request("sort_direction", "desc");
+
+        $query->orderBy($sortField, $sortDirection);
+
+        $ctfCategory = $query->withCount('ctfChallenges')->paginate(15);
+
         return response()->json([
             'success' => true,
-            'data' => CtfCategory::withCount('ctfChallenges')->get(),
+            'data'    => $ctfCategory,
         ]);
     }
 
@@ -23,12 +38,12 @@ class CtfCategoryController extends Controller
      */
     public function store(Request $request)
     {
-        if(!$request->user()->tokenCan('admin:*')){
+        if (! $request->user()->tokenCan('admin:*')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:ctf_categories,name',
+            'name'  => 'required|string|max:255|unique:ctf_categories,name',
             'color' => 'nullable|string|max:7',
         ]);
 
@@ -37,7 +52,7 @@ class CtfCategoryController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'CTF category created successfully.',
-            'data' => $ctfCategory,
+            'data'    => $ctfCategory,
         ], 201);
     }
 
@@ -49,7 +64,7 @@ class CtfCategoryController extends Controller
         $ctfCategory = CtfCategory::findOrFail($id);
         return response()->json([
             'success' => true,
-            'data' => $ctfCategory->loadCount('ctfChallenges'),
+            'data'    => $ctfCategory->loadCount('ctfChallenges'),
         ], 200);
     }
 
@@ -58,14 +73,14 @@ class CtfCategoryController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        if(!$request->user()->tokenCan('admin:*')){
+        if (! $request->user()->tokenCan('admin:*')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
         $ctfCategory = CtfCategory::findOrFail($id);
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:ctf_categories,name,' . $ctfCategory->id,
+            'name'  => 'required|string|max:255|unique:ctf_categories,name,' . $ctfCategory->id,
             'color' => 'nullable|string|max:7',
         ]);
 
@@ -74,7 +89,7 @@ class CtfCategoryController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'CTF category updated successfully.',
-            'data' => $ctfCategory,
+            'data'    => $ctfCategory,
         ], 200);
     }
 
@@ -83,7 +98,7 @@ class CtfCategoryController extends Controller
      */
     public function destroy(string $id)
     {
-        if(!request()->user()->tokenCan('admin:*')){
+        if (! request()->user()->tokenCan('admin:*')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
