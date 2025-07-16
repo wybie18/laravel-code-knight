@@ -10,11 +10,27 @@ class CourseCategoryController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $query = CourseCategory::query();
+
+        if ($request->has('search')) {
+            $searchTerm = $request->input('search');
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        $sortField = request("sort_field", "created_at");
+        $sortDirection = request("sort_direction", "desc");
+
+        $query->orderBy($sortField, $sortDirection);
+
+        $courseCategory = $query->withCount('courses')->paginate(15);
+
         return response()->json([
             'success' => true,
-            'data' => CourseCategory::withCount('courses')->get(),
+            'data' => $courseCategory,
         ]);
     }
 
