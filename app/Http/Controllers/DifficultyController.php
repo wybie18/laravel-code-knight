@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Http\Resources\DifficultyResource;
 use App\Models\Difficulty;
 use Illuminate\Http\Request;
 
@@ -26,10 +27,8 @@ class DifficultyController extends Controller
         $query->orderBy($sortField, $sortDirection);
 
         $difficulties = $query->paginate(15);
-        return response()->json([
-            'success' => true,
-            'data'    => $difficulties,
-        ], 200);
+        return DifficultyResource::collection($difficulties)->additional([
+            'success' => true]);
     }
 
     /**
@@ -47,11 +46,11 @@ class DifficultyController extends Controller
 
         $difficulty = Difficulty::create($validated);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Difficulty created successfully.',
-            'data'    => $difficulty,
-        ], 201);
+        return (new DifficultyResource($difficulty))
+            ->additional([
+                'success' => true,
+                'message' => 'Difficulty created successfully.',
+            ]);
     }
 
     /**
@@ -61,10 +60,10 @@ class DifficultyController extends Controller
     {
         $difficulty = Difficulty::findOrFail($id);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $difficulty,
-        ], 200);
+        return (new DifficultyResource($difficulty))
+            ->additional([
+                'success' => true,
+            ]);
     }
 
     /**
@@ -84,11 +83,11 @@ class DifficultyController extends Controller
 
         $difficulty->update($validated);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Difficulty updated successfully.',
-            'data'    => $difficulty,
-        ], 200);
+        return (new DifficultyResource($difficulty))
+            ->additional([
+                'success' => true,
+                'message' => 'Difficulty updated successfully.',
+            ]);
     }
 
     /**
