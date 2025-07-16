@@ -11,11 +11,26 @@ class BadgeCategoryController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $query = BadgeCategory::query();
+
+        if ($request->has('search')) {
+            $searchTerm = $request->input('search');
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        $sortField     = request("sort_field", "created_at");
+        $sortDirection = request("sort_direction", "desc");
+
+        $query->orderBy($sortField, $sortDirection);
+
+        $badgeCategory = $query->withCount('badges')->paginate(15);
         return response()->json([
             'success' => true,
-            'data' => BadgeCategory::withCount('badges')->get(),
+            'data' => $badgeCategory,
         ], 200);
     }
 
