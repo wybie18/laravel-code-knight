@@ -1,7 +1,7 @@
 <?php
-
 namespace App\Http\Controllers;
 
+use App\Http\Resources\LevelResource;
 use App\Models\Level;
 use Illuminate\Http\Request;
 
@@ -10,12 +10,31 @@ class LevelController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json([
-            'success' => true,
-            'data' => Level::all(),
-        ]);
+        if (! $request->user()->tokenCan('admin:*')) {
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
+        $query = Level::query();
+
+        if ($request->has('search')) {
+            $searchTerm = $request->input('search');
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%")
+                    ->orWhere('description', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        $sortField     = request("sort_field", "created_at");
+        $sortDirection = request("sort_direction", "desc");
+
+        $query->orderBy($sortField, $sortDirection);
+
+        $levels = $query->paginate(15);
+
+        return LevelResource::collection($levels)->additional([
+            'success' => true]);
     }
 
     /**
@@ -25,59 +44,79 @@ class LevelController extends Controller
     {
         $validated = $request->validate([
             'level_number' => 'required|integer|unique:levels,level_number',
-            'name' => 'required|string|max:255',
+            'name'         => 'required|string|max:255',
             'exp_required' => 'required|integer',
-            'icon' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
+            'icon'         => 'nullable|string|max:255',
+            'description'  => 'nullable|string',
         ]);
+
+        if (! $request->user()->tokenCan('admin:*')) {
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
 
         $level = Level::create($validated);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Level created successfully.',
-            'data' => $level,
-        ], 201);
+        return (new LevelResource($level))
+            ->additional([
+                'success' => true,
+                'message' => 'Level created successfully.',
+            ]);
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Level $level)
+    public function show(string $id)
     {
-        return response()->json([
-            'success' => true,
-            'data' => $level,
-        ]);
+        if (! request()->user()->tokenCan('admin:*')) {
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+        
+        $level = Level::findOrFail($id);
+        return (new LevelResource($level))
+            ->additional([
+                'success' => true
+            ]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Level $level)
+    public function update(Request $request, string $id)
     {
+        $level = Level::findOrFail($id);
+
         $validated = $request->validate([
             'level_number' => 'required|integer|unique:levels,level_number,' . $level->id,
-            'name' => 'required|string|max:255',
+            'name'         => 'required|string|max:255',
             'exp_required' => 'required|integer',
-            'icon' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
+            'icon'         => 'nullable|string|max:255',
+            'description'  => 'nullable|string',
         ]);
+
+        if (! $request->user()->tokenCan('admin:*')) {
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
 
         $level->update($validated);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Level updated successfully.',
-            'data' => $level,
-        ]);
+        return (new LevelResource($level))
+            ->additional([
+                'success' => true,
+                'message' => 'Level updated successfully.',
+            ]);
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Level $level)
+    public function destroy(string $id)
     {
+        if (! request()->user()->tokenCan('admin:*')) {
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
+        $level = Level::findOrFail($id);
         $level->delete();
 
         return response()->json(null, 204);
