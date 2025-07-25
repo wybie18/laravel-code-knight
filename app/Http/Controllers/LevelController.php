@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\LevelResource;
 use App\Models\Level;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class LevelController extends Controller
 {
@@ -46,7 +47,7 @@ class LevelController extends Controller
             'level_number' => 'required|integer|unique:levels,level_number',
             'name'         => 'required|string|max:255',
             'exp_required' => 'required|integer',
-            'icon'         => 'nullable|string|max:255',
+            'icon'         => 'nullable|mimes:svg,png,jpg,jpeg,gif|max:2048',
             'description'  => 'nullable|string',
         ]);
 
@@ -54,7 +55,15 @@ class LevelController extends Controller
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
-        $level = Level::create($validated);
+        $iconPath = null;
+        if ($request->hasFile('icon')) {
+            $iconPath = $request->file('icon')->store('level_icons', 'public');
+        }
+
+        unset($validated['icon']);
+
+        $levelData = array_merge($validated, ['icon' => $iconPath]);
+        $level = Level::create($levelData);
 
         return (new LevelResource($level))
             ->additional([
@@ -71,7 +80,7 @@ class LevelController extends Controller
         if (! request()->user()->tokenCan('admin:*')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
-        
+
         $level = Level::findOrFail($id);
         return (new LevelResource($level))
             ->additional([
@@ -90,7 +99,7 @@ class LevelController extends Controller
             'level_number' => 'required|integer|unique:levels,level_number,' . $level->id,
             'name'         => 'required|string|max:255',
             'exp_required' => 'required|integer',
-            'icon'         => 'nullable|string|max:255',
+            'icon'         => 'nullable|mimes:svg,png,jpg,jpeg,gif|max:2048',
             'description'  => 'nullable|string',
         ]);
 
@@ -98,7 +107,18 @@ class LevelController extends Controller
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
-        $level->update($validated);
+        $iconPath = $level->icon;
+
+        if ($request->hasFile('icon')) {
+            if ($level->icon && Storage::disk('public')->exists($level->icon)) {
+                Storage::disk('public')->delete($level->icon);
+            }
+            $iconPath = $request->file('icon')->store('level_icons', 'public');
+        }
+
+        unset($validated['icon']);
+
+        $level->update(array_merge($validated, ['icon' => $iconPath]));
 
         return (new LevelResource($level))
             ->additional([
@@ -117,6 +137,11 @@ class LevelController extends Controller
         }
 
         $level = Level::findOrFail($id);
+
+        if ($level->icon && Storage::disk('public')->exists($level->icon)) {
+            Storage::disk('public')->delete($level->icon);
+        }
+
         $level->delete();
 
         return response()->json(null, 204);
