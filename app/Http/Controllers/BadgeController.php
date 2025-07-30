@@ -1,8 +1,11 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Http\Resources\BadgeResource;
 use App\Models\Badge;
+use App\Models\BadgeCategory;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -13,6 +16,10 @@ class BadgeController extends Controller
      */
     public function index(Request $request)
     {
+        if (! $request->user()->tokenCan('admin:*')) {
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+        
         $query = Badge::query();
         if ($request->has('search')) {
             $searchTerm = $request->input('search');
@@ -21,12 +28,21 @@ class BadgeController extends Controller
                     ->orWhere('description', 'like', "%{$searchTerm}%");
             });
         }
-        $badges = $query->with('category')->paginate(15);
+        $sortField     = request("sort_field", "created_at");
+        $sortDirection = request("sort_direction", "desc");
 
-        return response()->json([
+        $badges = $query->orderBy($sortField, $sortDirection)->with('category')->paginate(15);
+
+        return BadgeResource::collection($badges)->additional([
+            'success' => true]);
+    }
+    
+    public function getBadgeCategories(){
+
+        return [
             'success' => true,
-            'data'    => $badges,
-        ]);
+            'data' => BadgeCategory::all()
+        ];
     }
 
     /**
@@ -37,12 +53,16 @@ class BadgeController extends Controller
         $validated = $request->validate([
             'name'         => 'required|string|max:255|unique:badges,name',
             'description'  => 'required|string',
-            'icon'         => 'nullable|string|max:255',
+            'icon'         => 'nullable|mimes:svg,png,jpg,jpeg,gif|max:2048',
             'color'        => 'nullable|string|max:7',
             'category_id'  => 'required|exists:badge_categories,id',
             'exp_reward'   => 'nullable|integer|min:0',
-            'requirements' => 'nullable|array',
+            'requirements' => 'nullable|json',
         ]);
+
+        if (! $request->user()->tokenCan('admin:*')) {
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
 
         $validated['slug'] = Str::slug($validated['name']);
 
@@ -51,13 +71,23 @@ class BadgeController extends Controller
             $validated['slug'] = $validated['slug'] . '-' . ($count + 1);
         }
 
-        $badge = Badge::create($validated);
+        $iconPath = null;
+        if ($request->hasFile('icon')) {
+            $iconPath = $request->file('icon')->store('badge_icons', 'public');
+        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Badge created successfully.',
-            'data'    => $badge,
-        ], 201);
+        unset($validated['icon']);
+
+        $badgeData = array_merge($validated, ['icon' => $iconPath]);
+
+        $badge = Badge::create($badgeData);
+        $badge->load('category');
+
+        return (new BadgeResource($badge))
+            ->additional([
+                'success' => true,
+                'message' => 'Badge created successfully.',
+            ]);
     }
 
     /**
@@ -65,10 +95,14 @@ class BadgeController extends Controller
      */
     public function show(Badge $badge)
     {
-        return response()->json([
-            'success' => true,
-            'data'    => $badge->load('category'),
-        ], 200);
+        if (! request()->user()->tokenCan('admin:*')) {
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
+        return (new BadgeResource($badge->load('category')))
+            ->additional([
+                'success' => true,
+            ]);
     }
 
     /**
@@ -84,12 +118,16 @@ class BadgeController extends Controller
                 Rule::unique('badges')->ignore($badge->id),
             ],
             'description'  => 'required|string',
-            'icon'         => 'nullable|string|max:255',
+            'icon'         => 'nullable|mimes:svg,png,jpg,jpeg,gif|max:2048',
             'color'        => 'nullable|string|max:7',
             'category_id'  => 'required|exists:badge_categories,id',
             'exp_reward'   => 'nullable|integer|min:0',
-            'requirements' => 'nullable|array',
+            'requirements' => 'nullable|json',
         ]);
+
+        if (! $request->user()->tokenCan('admin:*')) {
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
 
         if ($request->has('name')) {
             $validated['slug'] = Str::slug($validated['name']);
@@ -101,13 +139,25 @@ class BadgeController extends Controller
             }
         }
 
-        $badge->update($validated);
+        $iconPath = $badge->icon;
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Badge updated successfully.',
-            'data'    => $badge,
-        ]);
+        if ($request->hasFile('icon')) {
+            if ($badge->icon && Storage::disk('public')->exists($badge->icon)) {
+                Storage::disk('public')->delete($badge->icon);
+            }
+            $iconPath = $request->file('icon')->store('badge_icons', 'public');
+        }
+
+        unset($validated['icon']);
+
+        $badge->update(array_merge($validated, ['icon' => $iconPath]));
+        $badge->load('category');
+
+        return (new BadgeResource($badge))
+            ->additional([
+                'success' => true,
+                'message' => 'Badge updated successfully.',
+            ]);
     }
 
     /**
@@ -115,6 +165,14 @@ class BadgeController extends Controller
      */
     public function destroy(Badge $badge)
     {
+        if (! request()->user()->tokenCan('admin:*')) {
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
+        if ($badge->icon && Storage::disk('public')->exists($badge->icon)) {
+            Storage::disk('public')->delete($badge->icon);
+        }
+
         $badge->delete();
 
         return response()->json(null, 204);
