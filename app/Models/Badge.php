@@ -17,6 +17,10 @@ class Badge extends Model
         'requirements',
     ];
 
+    protected $casts = [
+        'requirements' => 'array',
+    ];
+
     /**
      * Get the route key for the model.
      * This tells Laravel to use the 'slug' column for route model binding.
