@@ -1,7 +1,7 @@
 <?php
-
 namespace App\Http\Controllers;
 
+use App\Http\Resources\UserRoleResource;
 use App\Models\User;
 use App\Models\UserRole;
 use Illuminate\Http\Request;
@@ -11,11 +11,33 @@ class UserRoleController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json([
+        $query = UserRole::query();
+
+        if ($request->has('search')) {
+            $searchTerm = $request->input('search');
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        $sortField     = request("sort_field", "created_at");
+        $sortDirection = request("sort_direction", "desc");
+
+        $query->orderBy($sortField, $sortDirection);
+
+        $userRoles = $query->withCount('users')->paginate(15);
+        return UserRoleResource::collection($userRoles)->additional([
+            'success' => true]);
+    }
+
+    public function getUserRoles()
+    {
+        $userRoles = UserRole::select('id', 'name')->get();
+
+        return UserRoleResource::collection($userRoles)->additional([
             'success' => true,
-            'data' => UserRole::withCount('users')->get(),
         ]);
     }
 
@@ -28,49 +50,70 @@ class UserRoleController extends Controller
             'name' => 'required|string|max:255|unique:user_roles,name',
         ]);
 
-        $userRole = UserRole::create($validated);
+        if (! $request->user()->tokenCan('admin:*')) {
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'User role created successfully.',
-            'data' => $userRole,
-        ], 201);
+        $userRole = UserRole::create($validated);
+        $userRole->loadCount('users');
+
+        return (new UserRoleResource($userRole))
+            ->additional([
+                'success' => true,
+                'message' => 'User role created successfully.',
+            ]);
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(UserRole $userRole)
+    public function show(String $id)
     {
-        return response()->json([
-            'success' => true,
-            'data' => $userRole->loadCount('users'),
-        ], 200);
+        if (! request()->user()->tokenCan('admin:*')) {
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+        $userRole = UserRole::findOrFail($id);
+
+        return (new UserRoleResource($userRole->loadCount('users')))
+            ->additional([
+                'success' => true,
+            ]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, UserRole $userRole)
+    public function update(Request $request, String $id)
     {
+        $userRole  = UserRole::findOrFail($id);
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:user_roles,name,' . $userRole->id,
         ]);
 
-        $userRole->update($validated);
+        if (! $request->user()->tokenCan('admin:*')) {
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'User role updated successfully.',
-            'data' => $userRole,
-        ]);
+        $userRole->update($validated);
+        $userRole->loadCount('users');
+
+        return (new UserRoleResource($userRole))
+            ->additional([
+                'success' => true,
+                'message' => 'User role updated successfully.',
+            ]);
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(UserRole $userRole)
+    public function destroy(String $id)
     {
+        if (! request()->user()->tokenCan('admin:*')) {
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
+        $userRole = UserRole::findOrFail($id);
         $userRole->delete();
 
         return response()->json(null, 204);
