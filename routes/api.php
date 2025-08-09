@@ -8,6 +8,7 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 require __DIR__ . '/api/auth.php';
+require __DIR__ . '/api/challenges.php';
 require __DIR__ . '/api/courses.php';
 require __DIR__ . '/api/settings.php';
 require __DIR__ . '/api/gamification.php';
