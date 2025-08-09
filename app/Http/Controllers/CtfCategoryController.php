@@ -32,6 +32,15 @@ class CtfCategoryController extends Controller
             'success' => true]);
     }
 
+    public function getAllCtfCategories()
+    {
+        $ctfCategories = CtfCategory::select('id', 'name', 'color')->get();
+
+        return CtfCategoryResource::collection($ctfCategories)->additional([
+            'success' => true,
+        ]);
+    }
+
     /**
      * Store a newly created resource in storage.
      */
