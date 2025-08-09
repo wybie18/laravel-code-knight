@@ -31,6 +31,15 @@ class DifficultyController extends Controller
             'success' => true]);
     }
 
+    public function getDifficulties()
+    {
+        $difficulties = Difficulty::select('id', 'name')->get();
+
+        return DifficultyResource::collection($difficulties)->additional([
+            'success' => true,
+        ]);
+    }
+
     /**
      * Store a newly created resource in storage.
      */
