@@ -32,6 +32,15 @@ class ProgrammingLanguageController extends Controller
             'success' => true]);
     }
 
+    public function getProgrammingLanguages()
+    {
+        $programmingLanguages = ProgrammingLanguage::select('id', 'name', 'version', 'language_id')->get();
+
+        return ProgrammingLanguageResource::collection($programmingLanguages)->additional([
+            'success' => true,
+        ]);
+    }
+
     /**
      * Store a newly created resource in storage.
      */
