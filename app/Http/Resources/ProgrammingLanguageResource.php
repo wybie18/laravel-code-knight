@@ -1,8 +1,10 @@
 <?php
+
 namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Resources\MissingValue; // Import MissingValue
 
 class ProgrammingLanguageResource extends JsonResource
 {
@@ -13,7 +15,16 @@ class ProgrammingLanguageResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return [
+        $pivot = $this->whenPivotLoaded('challenge_language', function () use ($request) {
+            return [
+                'starter_code'  => $this->pivot->starter_code,
+                'solution_code' => $request->user() && $request->user()->tokenCan('admin:*')
+                    ? $this->pivot->solution_code
+                    : null,
+            ];
+        });
+
+        $languageData = [
             'id'          => $this->id,
             'name'        => $this->name,
             'version'     => $this->version,
@@ -21,5 +32,11 @@ class ProgrammingLanguageResource extends JsonResource
             'created_at'  => $this->created_at,
             'updated_at'  => $this->updated_at,
         ];
+
+        if ($pivot instanceof MissingValue) {
+            $pivot = [];
+        }
+
+        return array_merge($languageData, $pivot);
     }
 }
