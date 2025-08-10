@@ -72,7 +72,7 @@ class CodingChallengeController extends Controller
             'description'                           => 'nullable|string',
             'difficulty_id'                         => 'required|exists:difficulties,id',
             'points'                                => 'required|integer|min:0',
-            'hints'                                 => 'nullable|json',
+            'hints'                                 => 'nullable|string',
 
             // CodingChallenge specific fields
             'problem_statement'                     => 'required|string',
@@ -172,7 +172,7 @@ class CodingChallengeController extends Controller
             'description'                           => 'nullable|string',
             'difficulty_id'                         => 'required|exists:difficulties,id',
             'points'                                => 'required|integer|min:0',
-            'hints'                                 => 'nullable|json',
+            'hints'                                 => 'nullable|string',
 
             'problem_statement'                     => 'required|string',
             'test_cases'                            => 'required|json',
