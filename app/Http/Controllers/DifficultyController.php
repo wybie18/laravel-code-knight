@@ -33,7 +33,7 @@ class DifficultyController extends Controller
 
     public function getDifficulties()
     {
-        $difficulties = Difficulty::select('id', 'name')->get();
+        $difficulties = Difficulty::select('id', 'name')->orderBy('created_at', 'desc')->get();
 
         return DifficultyResource::collection($difficulties)->additional([
             'success' => true,
