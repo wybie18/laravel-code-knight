@@ -5,7 +5,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class TypingChallenge extends Model
 {
-    protected $fillable = ['text_content', 'content_type', 'programming_language_id', 'target_wpm', 'target_accuracy'];
+    public $timestamps = false;
+    protected $fillable = ['text_content', 'programming_language_id', 'target_wpm', 'target_accuracy'];
 
     public function challenge()
     {
