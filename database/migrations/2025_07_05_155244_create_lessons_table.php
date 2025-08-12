@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('lessons', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('course_id')->constrained()->onDelete('cascade');
+            $table->foreignId('module_id')->constrained('course_modules')->onDelete('cascade');
             $table->string('title');
             $table->string('slug')->unique();
             $table->text('content')->nullable();
@@ -22,7 +22,8 @@ return new class extends Migration
             $table->integer('estimated_duration')->nullable(); // in minutes
             $table->integer('order');
             $table->timestamps();
-            $table->unique(['course_id', 'order']);
+            $table->unique(['module_id', 'order']);
+            $table->unique(['module_id', 'slug']);
         });
     }
 

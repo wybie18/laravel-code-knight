@@ -28,9 +28,9 @@ class Lesson extends Model
         return 'slug';
     }
 
-    public function course()
+    public function module()
     {
-        return $this->belongsTo(Course::class);
+        return $this->belongsTo(CourseModule::class);
     }
 
     public function activities()
