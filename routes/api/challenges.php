@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Challenge\CodingChallengeController;
 use App\Http\Controllers\Challenge\CtfChallengeController;
+use App\Http\Controllers\Challenge\TypingChallengeController;
 use App\Http\Controllers\CtfCategoryController;
 use App\Http\Controllers\DifficultyController;
 use App\Http\Controllers\ProgrammingLanguageController;
@@ -14,4 +15,5 @@ Route::get('programming-languages/all', [ProgrammingLanguageController::class, '
 Route::middleware(['auth:sanctum', 'ability:admin:*'])->group(function () {
     Route::apiResource('challenges/ctf', CtfChallengeController::class);
     Route::apiResource('challenges/coding', CodingChallengeController::class);
+    Route::apiResource('challenges/typing', TypingChallengeController::class);
 });
