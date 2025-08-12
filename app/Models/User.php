@@ -57,6 +57,11 @@ class User extends Authenticatable
         return $this->hasMany(UserBadge::class);
     }
 
+    public function courseEnrollments()
+    {
+        return $this->hasMany(CourseEnrollment::class);
+    }
+
     public function courseProgress()
     {
         return $this->hasMany(UserCourseProgress::class);

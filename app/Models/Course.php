@@ -46,6 +46,11 @@ class Course extends Model
         return $this->hasMany(CourseModule::class)->orderBy('order');
     }
 
+    public function enrollments()
+    {
+        return $this->hasMany(CourseEnrollment::class);
+    }
+
     public function skillTags()
     {
         return $this->belongsToMany(SkillTag::class, 'course_skill_tag');
