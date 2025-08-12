@@ -46,11 +46,6 @@ class Course extends Model
         return $this->hasMany(Lesson::class)->orderBy('order');
     }
 
-    public function flashcards()
-    {
-        return $this->hasMany(Flashcard::class)->orderBy('order');
-    }
-
     public function skillTags()
     {
         return $this->belongsToMany(SkillTag::class, 'course_skill_tag');

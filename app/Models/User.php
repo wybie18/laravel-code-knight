@@ -67,11 +67,6 @@ class User extends Authenticatable
         return $this->hasMany(UserLessonProgress::class);
     }
 
-    public function flashcardProgress()
-    {
-        return $this->hasMany(UserFlashcardProgress::class);
-    }
-
     public function activitySubmissions()
     {
         return $this->hasMany(UserActivitySubmission::class);
