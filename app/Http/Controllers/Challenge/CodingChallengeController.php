@@ -16,7 +16,7 @@ class CodingChallengeController extends Controller
      */
     public function index(Request $request)
     {
-        if (! $request->user()->tokenCan('admin:*') && ! $request->user()->tokenCan('user:*')) {
+        if (! $request->user()->tokenCan('admin:*') && ! $request->user()->tokenCan('challenge:view')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
