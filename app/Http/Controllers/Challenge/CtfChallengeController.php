@@ -17,6 +17,10 @@ class CtfChallengeController extends Controller
      */
     public function index(Request $request)
     {
+        if (!$request->user()->tokenCan('admin:*') && !$request->user()->tokenCan('challenge:view')) {
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+        
         $query = Challenge::with(['challengeable', 'difficulty', 'challengeable.category'])
             ->where('challengeable_type', CtfChallenge::class);
 
