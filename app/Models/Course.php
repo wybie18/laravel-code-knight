@@ -41,9 +41,9 @@ class Course extends Model
         return $this->belongsTo(CourseCategory::class, 'category_id');
     }
 
-    public function lessons()
+    public function modules()
     {
-        return $this->hasMany(Lesson::class)->orderBy('order');
+        return $this->hasMany(CourseModule::class)->orderBy('order');
     }
 
     public function skillTags()
