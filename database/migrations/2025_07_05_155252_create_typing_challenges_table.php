@@ -14,8 +14,7 @@ return new class extends Migration
         Schema::create('typing_challenges', function (Blueprint $table) {
             $table->id();
             $table->text('text_content');
-            $table->enum('content_type', ['code', 'prose']);
-            $table->foreignId('programming_language_id')->nullable()->constrained();
+            $table->foreignId('programming_language_id')->constrained();
             $table->integer('target_wpm')->default(40);
             $table->decimal('target_accuracy', 5, 2)->default(95.00);
         });
