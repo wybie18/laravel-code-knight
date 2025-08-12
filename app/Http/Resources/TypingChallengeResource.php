@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
@@ -14,6 +13,12 @@ class TypingChallengeResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        return [
+            'id'                      => $this->id,
+            'text_content'            => $this->text_content,
+            'target_wpm'              => $this->target_wpm,
+            'target_accuracy'         => $this->target_accuracy,
+            'programming_language'    => new ProgrammingLanguageResource($this->whenLoaded('programmingLanguage')),
+        ];
     }
 }
