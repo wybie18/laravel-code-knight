@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Resources;
 
+use App\Models\TypingChallenge;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Str;
@@ -29,6 +30,8 @@ class ChallengeResource extends JsonResource
                     return new CtfChallengeResource($this->challengeable);
                 } elseif ($this->challengeable_type === \App\Models\CodingChallenge::class) {
                     return new CodingChallengeResource($this->challengeable);
+                } elseif ($this->challengeable_type === TypingChallenge::class) {
+                    return new TypingChallengeResource($this->challengeable);
                 }
                 return null;
             }),
