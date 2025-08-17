@@ -11,7 +11,6 @@ class Activity extends Model
         'title',
         'description',
         'type',
-        'content',
         'coding_activity_problem_id',
         'exp_reward',
         'order',

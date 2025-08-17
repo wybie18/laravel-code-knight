@@ -17,7 +17,6 @@ return new class extends Migration
             $table->string('title');
             $table->text('description')->nullable();
             $table->enum('type', ['content', 'code', 'quiz']);
-            $table->text('content')->nullable(); // For 'content' type
             $table->foreignId('coding_activity_problem_id')->nullable()->constrained()->onDelete('set null');
             $table->integer('exp_reward')->default(0);
             $table->integer('order')->default(0);
