@@ -32,6 +32,15 @@ class CourseCategoryController extends Controller
             'success' => true]);
     }
 
+    public function getAllCourseCategories()
+    {
+        $courseCategories = CourseCategory::select('id', 'name', 'color')->get();
+
+        return CourseCategoryResource::collection($courseCategories)->additional([
+            'success' => true,
+        ]);
+    }
+
     /**
      * Store a newly created resource in storage.
      */
