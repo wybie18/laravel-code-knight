@@ -17,7 +17,6 @@ return new class extends Migration
             $table->string('title');
             $table->string('slug')->unique();
             $table->text('content')->nullable();
-            $table->string('video_url')->nullable();
             $table->integer('exp_reward')->default(0);
             $table->integer('estimated_duration')->nullable(); // in minutes
             $table->integer('order');
