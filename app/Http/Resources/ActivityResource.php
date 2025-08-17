@@ -21,7 +21,6 @@ class ActivityResource extends JsonResource
             'exp_reward'  => $this->exp_reward,
             'order'       => $this->order,
             'is_required' => $this->is_required,
-            'content'     => $this->when($this->type === 'content', $this->content),
             'problem'     => $this->when(
                 $this->type === 'code' && $this->relationLoaded('codingActivityProblem'),
                 fn() => new CodingActivityProblemResource($this->codingActivityProblem)
