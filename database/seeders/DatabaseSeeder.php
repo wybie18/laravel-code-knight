@@ -1,5 +1,4 @@
 <?php
-
 namespace Database\Seeders;
 
 use App\Models\CourseCategory;
@@ -24,19 +23,20 @@ class DatabaseSeeder extends Seeder
         //     'email' => 'test@example.com',
         // ]);
 
-        User::factory()->create([
-            'username' => 'Administrator',
-            'first_name' => 'admin',
-            'last_name' => 'admin',
-            'email' => 'admin@admin.com',
-            'password' => Hash::make('qwe1234!')
-        ]);
-
         UserRole::create([
             'name' => 'admin',
         ]);
         UserRole::create([
             'name' => 'student',
+        ]);
+
+        User::factory()->create([
+            'username'   => 'Administrator',
+            'first_name' => 'admin',
+            'last_name'  => 'admin',
+            'email'      => 'admin@admin.com',
+            'password'   => Hash::make('qwe1234!'),
+            'role_id'    => 1,
         ]);
 
         CourseCategory::create([
@@ -58,6 +58,6 @@ class DatabaseSeeder extends Seeder
         Difficulty::create([
             'name' => 'Advanced',
         ]);
-        
+
     }
 }
