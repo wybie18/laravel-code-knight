@@ -11,7 +11,6 @@ class Lesson extends Model
         'slug',
         'title',
         'content',
-        'video_url',
         'exp_reward',
         'estimated_duration',
         'order',
