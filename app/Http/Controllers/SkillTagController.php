@@ -32,6 +32,15 @@ class SkillTagController extends Controller
             'success' => true]);
     }
 
+    public function getAllSkillTags()
+    {
+        $skillTags = SkillTag::select('id', 'name', 'color')->get();
+
+        return SkillTagResource::collection($skillTags)->additional([
+            'success' => true,
+        ]);
+    }
+
     /**
      * Store a newly created resource in storage.
      */
