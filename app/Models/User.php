@@ -77,11 +77,6 @@ class User extends Authenticatable
         return $this->hasMany(UserActivitySubmission::class);
     }
 
-    public function quizAnswers()
-    {
-        return $this->hasMany(UserQuizAnswer::class);
-    }
-
     public function streaks()
     {
         return $this->hasMany(UserStreak::class);
