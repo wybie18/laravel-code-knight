@@ -9,12 +9,9 @@ class UserActivitySubmission extends Model
     protected $fillable = [
         'activity_id',
         'user_id',
-        'submitted_code',
-        'is_correct',
-        'test_results',
+        'answer',
+        'is_correct'
     ];
-
-    protected $casts = ['test_results' => 'array'];
 
     public function user()
     {
