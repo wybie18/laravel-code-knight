@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Lesson extends Model
 {
     protected $fillable = [
-        'course_id',
+        'module_id',
         'slug',
         'title',
         'content',
@@ -41,5 +41,15 @@ class Lesson extends Model
     public function userProgress()
     {
         return $this->hasMany(UserLessonProgress::class);
+    }
+
+    public function prerequisites()
+    {
+        return $this->belongsToMany(Lesson::class, 'lesson_prerequisites', 'lesson_id', 'prerequisite_lesson_id');
+    }
+
+    public function dependentLessons()
+    {
+        return $this->belongsToMany(Lesson::class, 'lesson_prerequisites', 'prerequisite_lesson_id', 'lesson_id');
     }
 }
