@@ -1,10 +1,11 @@
 <?php
-
 namespace App\Http\Controllers\Course;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\CourseResource;
 use App\Models\Course;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -15,22 +16,57 @@ class CourseController extends Controller
      */
     public function index(Request $request)
     {
+        $request->validate([
+            'search'        => 'sometimes|string|max:255',
+            'category_id'   => 'sometimes|exists:course_categories,id',
+            'difficulty_id' => 'sometimes|exists:difficulties,id',
+            'is_published'  => 'sometimes|boolean',
+            'per_page'      => 'sometimes|integer|min:1|max:100',
+        ]);
+
         $query = Course::query();
 
         if ($request->has('search')) {
             $searchTerm = $request->input('search');
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('title', 'like', "%{$searchTerm}%")
-                    ->orWhere('description', 'like', "%{$searchTerm}%");
+                    ->orWhere('description', 'like', "%{$searchTerm}%")
+                    ->orWhere('short_description', 'like', "%{$searchTerm}%");
             });
         }
 
-        $courses = $query->with(['difficulty', 'category', 'skillTags'])->paginate(15);
+        if ($request->has('category_id')) {
+            $query->where('category_id', $request->input('category_id'));
+        }
 
-        return response()->json([
-            "success" => true,
-            "data"    => $courses,
-        ], 200);
+        if ($request->has('difficulty_id')) {
+            $query->where('difficulty_id', $request->input('difficulty_id'));
+        }
+
+        if ($request->has('is_published')) {
+            $query->where('is_published', $request->boolean('is_published'));
+        }
+
+        $query->with(['difficulty', 'category', 'skillTags'])
+            ->withCount(['modules', 'enrollments']);
+
+        if (Auth::check()) {
+            $userId = Auth::id();
+            $query->with([
+                'userEnrollment' => function ($q) use ($userId) {
+                    $q->where('user_id', $userId);
+                },
+                'userProgress'   => function ($q) use ($userId) {
+                    $q->where('user_id', $userId);
+                },
+            ]);
+        }
+
+        $courses = $query->paginate(15);
+
+        return CourseResource::collection($courses)->additional([
+            'success' => true,
+        ]);
     }
 
     /**
@@ -48,22 +84,25 @@ class CourseController extends Controller
             'exp_reward'         => 'nullable|integer|min:0',
             'estimated_duration' => 'nullable|integer|min:0',
             'is_published'       => 'sometimes|boolean',
+            'skill_tag_ids'      => 'sometimes|array',
+            'skill_tag_ids.*'    => 'exists:skill_tags,id',
         ]);
 
-        $validated['slug'] = Str::slug($validated['title']);
-
-        $count = Course::where('slug', 'like', $validated['slug'] . '%')->count();
-        if ($count > 0) {
-            $validated['slug'] = $validated['slug'] . '-' . ($count + 1);
-        }
+        $validated['slug'] = $this->generateUniqueSlug($validated['title']);
 
         $course = Course::create($validated);
 
-        return response()->json([
-            "success" => true,
-            "message" => "Course created successfully!",
-            "data"    => $course,
-        ], 201);
+        if ($request->has('skill_tag_ids')) {
+            $course->skillTags()->attach($request->input('skill_tag_ids'));
+        }
+
+        $course->load(['difficulty', 'category', 'skillTags']);
+
+        return (new CourseResource($course))
+            ->additional([
+                'success' => true,
+                'message' => 'Course created successfully.',
+            ]);
     }
 
     /**
@@ -71,9 +110,24 @@ class CourseController extends Controller
      */
     public function show(Course $course)
     {
-        $course->load(['difficulty', 'category', 'lessons', 'flashcards', 'skillTags']);
-        
-        return response()->json($course);
+        $course->load(['difficulty', 'category', 'modules.lessons', 'skillTags']);
+
+        if (Auth::check()) {
+            $userId = Auth::id();
+            $course->load([
+                'userEnrollment' => function ($q) use ($userId) {
+                    $q->where('user_id', $userId);
+                },
+                'userProgress'   => function ($q) use ($userId) {
+                    $q->where('user_id', $userId);
+                },
+            ]);
+        }
+
+        return (new CourseResource($course))
+            ->additional([
+                'success' => true,
+            ]);
     }
 
     /**
@@ -96,25 +150,27 @@ class CourseController extends Controller
             'exp_reward'         => 'required|integer|min:0',
             'estimated_duration' => 'required|integer|min:0',
             'is_published'       => 'sometimes|boolean',
+            'skill_tag_ids'      => 'sometimes|array',
+            'skill_tag_ids.*'    => 'exists:skill_tags,id',
         ]);
 
         if ($request->has('title')) {
-            $validated['slug'] = Str::slug($validated['title']);
-
-            $count = Course::where('slug', 'like', $validated['slug'] . '%')
-                ->whereNot('id', $course->id)->count();
-            if ($count > 0) {
-                $validated['slug'] = $validated['slug'] . '-' . ($count + 1);
-            }
+            $validated['slug'] = $this->generateUniqueSlug($validated['title'], $course->id);
         }
 
         $course->update($validated);
 
-        return response()->json([
-            "success" => true,
-            "message" => "Course updated successfully!",
-            "data"    => $course,
-        ], 200);
+        if ($request->has('skill_tag_ids')) {
+            $course->skillTags()->sync($request->input('skill_tag_ids'));
+        }
+
+        $course->load(['difficulty', 'category', 'skillTags']);
+
+        return (new CourseResource($course))
+            ->additional([
+                'success' => true,
+                'message' => 'Course updated successfully.',
+            ]);
     }
 
     /**
@@ -125,5 +181,32 @@ class CourseController extends Controller
         $course->delete();
 
         return response()->json(null, 204);
+    }
+
+    /**
+     * Generate unique slug for course
+     */
+    private function generateUniqueSlug(string $title, ?int $excludeId = null): string
+    {
+        $baseSlug = Str::slug($title);
+        $slug     = $baseSlug;
+        $counter  = 1;
+
+        $query = Course::where('slug', $slug);
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        while ($query->exists()) {
+            $slug = $baseSlug . '-' . $counter;
+            $counter++;
+
+            $query = Course::where('slug', $slug);
+            if ($excludeId) {
+                $query->where('id', '!=', $excludeId);
+            }
+        }
+
+        return $slug;
     }
 }
