@@ -47,7 +47,7 @@ class CourseController extends Controller
             $query->where('is_published', $request->boolean('is_published'));
         }
 
-        $query->with(['difficulty', 'category', 'skillTags'])
+        $query->with(['difficulty', 'category', 'skillTags', 'programmingLanguage'])
             ->withCount(['modules', 'enrollments']);
 
         if (Auth::check()) {
@@ -86,6 +86,7 @@ class CourseController extends Controller
             'is_published'       => 'sometimes|boolean',
             'skill_tag_ids'      => 'sometimes|array',
             'skill_tag_ids.*'    => 'exists:skill_tags,id',
+            'programming_language_id' => 'required|exists:programming_languages,id',
         ]);
 
         $validated['slug'] = $this->generateUniqueSlug($validated['title']);
@@ -96,7 +97,7 @@ class CourseController extends Controller
             $course->skillTags()->attach($request->input('skill_tag_ids'));
         }
 
-        $course->load(['difficulty', 'category', 'skillTags']);
+        $course->load(['difficulty', 'category', 'skillTags', 'programmingLanguage']);
 
         return (new CourseResource($course))
             ->additional([
@@ -110,7 +111,7 @@ class CourseController extends Controller
      */
     public function show(Course $course)
     {
-        $course->load(['difficulty', 'category', 'modules.lessons', 'skillTags']);
+        $course->load(['difficulty', 'category', 'modules.lessons', 'skillTags', 'programmingLanguage']);
 
         if (Auth::check()) {
             $userId = Auth::id();
@@ -152,6 +153,7 @@ class CourseController extends Controller
             'is_published'       => 'sometimes|boolean',
             'skill_tag_ids'      => 'sometimes|array',
             'skill_tag_ids.*'    => 'exists:skill_tags,id',
+            'programming_language_id' => 'required|exists:programming_languages,id',
         ]);
 
         if ($request->has('title')) {
@@ -164,7 +166,7 @@ class CourseController extends Controller
             $course->skillTags()->sync($request->input('skill_tag_ids'));
         }
 
-        $course->load(['difficulty', 'category', 'skillTags']);
+        $course->load(['difficulty', 'category', 'skillTags', 'programmingLanguage']);
 
         return (new CourseResource($course))
             ->additional([

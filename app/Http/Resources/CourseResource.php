@@ -34,6 +34,7 @@ class CourseResource extends JsonResource
             'skill_tags'                 => SkillTagResource::collection($this->whenLoaded('skillTags')),
             'enrollment'                 => new CourseEnrollmentResource($this->whenLoaded('userEnrollment')),
             'progress'                   => new UserCourseProgressResource($this->whenLoaded('userProgress')),
+            'programming_language'       => new ProgrammingLanguageResource($this->whenLoaded('programmingLanguage')),
 
             // Computed fields
             'lessons_count'              => $this->when($this->lessons_count !== null, $this->lessons_count),
