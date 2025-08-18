@@ -18,4 +18,14 @@ class ProgrammingLanguage extends Model
             ->using(ChallengeLanguage::class)
             ->withPivot('starter_code', 'solution_code');
     }
+
+    public function typingChallenges()
+    {
+        return $this->hasMany(TypingChallenge::class);
+    }
+
+    public function courses()
+    {
+        return $this->hasMany(Course::class);
+    }
 }
