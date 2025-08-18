@@ -8,13 +8,11 @@ class CodingActivityProblem extends Model
     protected $fillable = [
         'problem_statement',
         'test_cases',
-        'solution_code',
         'starter_code',
     ];
 
     protected $casts = [
-        'test_cases' => 'array', 
-        'starter_code' => 'array'
+        'test_cases' => 'array'
     ];
 
     public function activities()

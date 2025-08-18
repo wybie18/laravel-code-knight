@@ -15,8 +15,7 @@ return new class extends Migration
             $table->id();
             $table->text('problem_statement');
             $table->json('test_cases');
-            $table->text('solution_code');
-            $table->json('starter_code')->nullable();
+            $table->text('starter_code')->nullable();
             $table->timestamps();
         });
     }
