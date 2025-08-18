@@ -24,6 +24,7 @@ return new class extends Migration
             $table->integer('exp_reward')->default(0);
             $table->integer('estimated_duration')->nullable(); // in minutes
             $table->boolean('is_published')->default(false);
+            $table->foreignId('programming_language_id')->constrained();
             $table->timestamps();
         });
 

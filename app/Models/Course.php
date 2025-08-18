@@ -18,6 +18,7 @@ class Course extends Model
         'exp_reward',
         'estimated_duration',
         'is_published',
+        'programming_language_id',
     ];
 
     /**
@@ -59,5 +60,9 @@ class Course extends Model
     public function userProgress()
     {
         return $this->hasMany(UserCourseProgress::class);
+    }
+
+    public function programmingLanguage(){
+        return $this->belongsTo(ProgrammingLanguage::class);
     }
 }
