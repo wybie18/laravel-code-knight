@@ -75,17 +75,17 @@ class CourseController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'title'              => 'required|string|max:255|unique:courses,title',
-            'description'        => 'required|string',
-            'short_description'  => 'required|string|max:500',
-            'objectives'         => 'required|string',
-            'difficulty_id'      => 'required|exists:difficulties,id',
-            'category_id'        => 'required|exists:course_categories,id',
-            'exp_reward'         => 'nullable|integer|min:0',
-            'estimated_duration' => 'nullable|integer|min:0',
-            'is_published'       => 'sometimes|boolean',
-            'skill_tag_ids'      => 'sometimes|array',
-            'skill_tag_ids.*'    => 'exists:skill_tags,id',
+            'title'                   => 'required|string|max:255|unique:courses,title',
+            'description'             => 'required|string',
+            'short_description'       => 'required|string|max:500',
+            'objectives'              => 'required|string',
+            'difficulty_id'           => 'required|exists:difficulties,id',
+            'category_id'             => 'required|exists:course_categories,id',
+            'exp_reward'              => 'nullable|integer|min:0',
+            'estimated_duration'      => 'nullable|integer|min:0',
+            'is_published'            => 'sometimes|boolean',
+            'skill_tag_ids'           => 'sometimes|array',
+            'skill_tag_ids.*'         => 'exists:skill_tags,id',
             'programming_language_id' => 'required|exists:programming_languages,id',
         ]);
 
@@ -137,22 +137,22 @@ class CourseController extends Controller
     public function update(Request $request, Course $course)
     {
         $validated = $request->validate([
-            'title'              => [
+            'title'                   => [
                 'sometimes',
                 'string',
                 'max:255',
                 Rule::unique('courses')->ignore($course->id),
             ],
-            'description'        => 'required|string',
-            'short_description'  => 'required|string|max:500',
-            'objectives'         => 'required|string',
-            'difficulty_id'      => 'sometimes|exists:difficulties,id',
-            'category_id'        => 'sometimes|exists:course_categories,id',
-            'exp_reward'         => 'required|integer|min:0',
-            'estimated_duration' => 'required|integer|min:0',
-            'is_published'       => 'sometimes|boolean',
-            'skill_tag_ids'      => 'sometimes|array',
-            'skill_tag_ids.*'    => 'exists:skill_tags,id',
+            'description'             => 'required|string',
+            'short_description'       => 'required|string|max:500',
+            'objectives'              => 'required|string',
+            'difficulty_id'           => 'sometimes|exists:difficulties,id',
+            'category_id'             => 'sometimes|exists:course_categories,id',
+            'exp_reward'              => 'required|integer|min:0',
+            'estimated_duration'      => 'required|integer|min:0',
+            'is_published'            => 'sometimes|boolean',
+            'skill_tag_ids'           => 'sometimes|array',
+            'skill_tag_ids.*'         => 'exists:skill_tags,id',
             'programming_language_id' => 'required|exists:programming_languages,id',
         ]);
 
