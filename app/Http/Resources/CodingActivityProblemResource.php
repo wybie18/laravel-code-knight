@@ -17,8 +17,8 @@ class CodingActivityProblemResource extends JsonResource
             'id'                => $this->id,
             'problem_statement' => $this->problem_statement,
             'starter_code'      => $this->starter_code,
-            'solution_code'     => $this->when($request->user()->tokenCan('admin:*'), $this->solution_code),
-            'test_cases'        => $this->test_cases,
+            'solution_code'     => $this->when($request->user() && $request->user()->tokenCan('admin:*'), $this->solution_code),
+            'test_cases'        => json_decode($this->test_cases),
             'created_at'        => $this->created_at,
             'updated_at'        => $this->updated_at,
         ];
