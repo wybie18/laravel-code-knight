@@ -18,8 +18,7 @@ class QuizQuestion extends Model
     ];
 
     protected $casts = [
-        'options' => 'array', 
-        'correct_answers' => 'array'
+        'options' => 'array'
     ];
 
     public function activity()
