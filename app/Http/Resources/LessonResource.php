@@ -29,7 +29,7 @@ class LessonResource extends JsonResource
             // Relationships
             'module'             => new CourseModuleResource($this->whenLoaded('module')),
             'course'             => new CourseResource($this->whenLoaded('course')),
-            'activities'         => $this->activities,
+            'activities'         => ActivityResource::collection($this->whenLoaded('activities')),
             'prerequisites'      => LessonResource::collection($this->whenLoaded('prerequisites')),
             'progress'           => new UserLessonProgressResource($this->whenLoaded('userProgress')),
 
