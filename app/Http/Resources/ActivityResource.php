@@ -22,11 +22,11 @@ class ActivityResource extends JsonResource
             'order'       => $this->order,
             'is_required' => $this->is_required,
             'problem'     => $this->when(
-                $this->type === 'code' && $this->relationLoaded('codingActivityProblem'),
+                $this->type === 'code',
                 fn() => new CodingActivityProblemResource($this->codingActivityProblem)
             ),
             'questions'   => $this->when(
-                $this->type === 'quiz' && $this->relationLoaded('quizQuestions'),
+                $this->type === 'quiz',
                 fn() => QuizQuestionResource::collection($this->quizQuestions)
             ),
             'submissions' => UserActivitySubmissionResource::collection($this->whenLoaded('activitySubmissions')),
