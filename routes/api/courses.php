@@ -10,7 +10,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('courses', CourseController::class)->except(['index', 'show']);
-    Route::post('courses/store-with-content', [CourseController::class, 'storeWithContent']);
+    Route::post('courses/store/content', [CourseController::class, 'storeWithContent']);
+    Route::put('/courses/{course}/content', [CourseController::class, 'updateWithContent']);
 
     Route::apiResource('courses.modules', CourseModuleController::class)
         ->except(['index', 'show'])
