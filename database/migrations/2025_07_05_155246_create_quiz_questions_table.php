@@ -17,7 +17,7 @@ return new class extends Migration
             $table->text('question');
             $table->enum('type', ['multiple_choice', 'fill_blank', 'boolean']);
             $table->json('options')->nullable();
-            $table->json('correct_answers');
+            $table->string('correct_answer');
             $table->text('explanation')->nullable();
             $table->integer('points')->default(1);
             $table->integer('order')->default(0);
