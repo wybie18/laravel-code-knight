@@ -3,6 +3,7 @@
 use App\Http\Controllers\Course\ActivityController;
 use App\Http\Controllers\Course\CourseController;
 use App\Http\Controllers\Course\CourseModuleController;
+use App\Http\Controllers\Course\CourseWithContentController;
 use App\Http\Controllers\Course\LessonController;
 use App\Http\Controllers\CourseCategoryController;
 use App\Http\Controllers\SkillTagController;
@@ -10,8 +11,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('courses', CourseController::class)->except(['index', 'show']);
-    Route::post('courses/store/content', [CourseController::class, 'storeWithContent']);
-    Route::put('/courses/{course}/content', [CourseController::class, 'updateWithContent']);
+    Route::post('courses/store/content', [CourseWithContentController::class, 'storeWithContent']);
+    Route::put('/courses/{course}/content', [CourseWithContentController::class, 'updateWithContent']);
 
     Route::apiResource('courses.modules', CourseModuleController::class)
         ->except(['index', 'show'])
