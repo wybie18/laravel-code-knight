@@ -182,11 +182,15 @@ class CourseController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Course $course)
+    public function destroy(Course $course, Request $request)
     {
         if (! request()->user()->tokenCan('admin:*')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
+
+        $request->validate([
+            'password' => ['required', 'current_password'],
+        ]);
 
         DB::beginTransaction();
 
