@@ -82,7 +82,6 @@ class CodingChallengeController extends Controller
             'programming_languages'                 => 'required|array|min:1',
             'programming_languages.*.language_id'   => 'required|exists:programming_languages,id',
             'programming_languages.*.starter_code'  => 'nullable|string',
-            'programming_languages.*.solution_code' => 'nullable|string',
         ]);
 
         DB::beginTransaction();
@@ -108,7 +107,6 @@ class CodingChallengeController extends Controller
             foreach ($validated['programming_languages'] as $langData) {
                 $languagesToAttach[$langData['language_id']] = [
                     'starter_code'  => $langData['starter_code'] ?? null,
-                    'solution_code' => $langData['solution_code'] ?? null,
                 ];
             }
             $codingChallenge->programmingLanguages()->attach($languagesToAttach);
@@ -180,7 +178,6 @@ class CodingChallengeController extends Controller
             'programming_languages'                 => 'required|array|min:1',
             'programming_languages.*.id'   => 'required|exists:programming_languages,id',
             'programming_languages.*.starter_code'  => 'nullable|string',
-            'programming_languages.*.solution_code' => 'nullable|string',
         ]);
 
         DB::beginTransaction();
@@ -206,7 +203,6 @@ class CodingChallengeController extends Controller
             foreach ($validated['programming_languages'] as $langData) {
                 $languagesToSync[$langData['id']] = [
                     'starter_code'  => $langData['starter_code'] ?? null,
-                    'solution_code' => $langData['solution_code'] ?? null,
                 ];
             }
             $codingChallenge->programmingLanguages()->sync($languagesToSync);

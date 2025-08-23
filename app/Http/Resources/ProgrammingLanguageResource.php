@@ -17,10 +17,7 @@ class ProgrammingLanguageResource extends JsonResource
     {
         $pivot = $this->whenPivotLoaded('challenge_language', function () use ($request) {
             return [
-                'starter_code'  => $this->pivot->starter_code,
-                'solution_code' => $request->user() && $request->user()->tokenCan('admin:*')
-                    ? $this->pivot->solution_code
-                    : null,
+                'starter_code'  => $this->pivot->starter_code
             ];
         });
 

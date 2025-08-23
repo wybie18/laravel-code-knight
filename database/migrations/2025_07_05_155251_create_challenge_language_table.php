@@ -16,7 +16,6 @@ return new class extends Migration
             $table->foreignId('coding_challenge_id')->constrained()->onDelete('cascade');
             $table->foreignId('programming_language_id')->constrained()->onDelete('cascade');
             $table->text('starter_code')->nullable();
-            $table->text('solution_code')->nullable();
             $table->unique(['coding_challenge_id', 'programming_language_id'], 'challenge_language_unique');
         });
     }

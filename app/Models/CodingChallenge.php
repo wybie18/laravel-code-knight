@@ -19,6 +19,6 @@ class CodingChallenge extends Model
     {
         return $this->belongsToMany(ProgrammingLanguage::class, 'challenge_language')
             ->using(ChallengeLanguage::class)
-            ->withPivot('starter_code', 'solution_code');
+            ->withPivot('starter_code');
     }
 }
