@@ -178,7 +178,7 @@ class CodingChallengeController extends Controller
             'test_cases'                            => 'required|json',
 
             'programming_languages'                 => 'required|array|min:1',
-            'programming_languages.*.language_id'   => 'required|exists:programming_languages,id',
+            'programming_languages.*.id'   => 'required|exists:programming_languages,id',
             'programming_languages.*.starter_code'  => 'nullable|string',
             'programming_languages.*.solution_code' => 'nullable|string',
         ]);
@@ -204,7 +204,7 @@ class CodingChallengeController extends Controller
 
             $languagesToSync = [];
             foreach ($validated['programming_languages'] as $langData) {
-                $languagesToSync[$langData['language_id']] = [
+                $languagesToSync[$langData['id']] = [
                     'starter_code'  => $langData['starter_code'] ?? null,
                     'solution_code' => $langData['solution_code'] ?? null,
                 ];
