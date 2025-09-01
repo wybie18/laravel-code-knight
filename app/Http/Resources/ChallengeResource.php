@@ -22,6 +22,7 @@ class ChallengeResource extends JsonResource
             'description'   => $this->description,
             'points'        => $this->points,
             'hints'         => $this->hints,
+            'is_solved'     => $this->is_solved ?? false,
             'difficulty'    => new DifficultyResource($this->whenLoaded('difficulty')),
             'created_at'    => $this->created_at,
             'updated_at'    => $this->updated_at,
