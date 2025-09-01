@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Challenge;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ChallengeResource;
 use App\Models\Challenge;
+use App\Models\ChallengeSubmission;
 use App\Models\CtfChallenge;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,11 +18,11 @@ class CtfChallengeController extends Controller
      */
     public function index(Request $request)
     {
-        if (!$request->user()->tokenCan('admin:*') && !$request->user()->tokenCan('challenge:view')) {
+        if (! $request->user()->tokenCan('admin:*') && ! $request->user()->tokenCan('challenge:view')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
-        
-        $query = Challenge::with(['challengeable', 'difficulty', 'challengeable.category'])
+
+        $query = Challenge::query()
             ->where('challengeable_type', CtfChallenge::class);
 
         if ($request->has('search')) {
@@ -32,11 +33,54 @@ class CtfChallengeController extends Controller
             });
         }
 
+        if ($request->has('category_ids')) {
+            $categoryIds = explode(',', $request->input('category_ids'));
+
+            $categoryIds = array_filter(array_map('intval', $categoryIds));
+
+            if (! empty($categoryIds)) {
+                $query->whereExists(function ($q) use ($categoryIds) {
+                    $q->select(DB::raw(1))
+                        ->from('ctf_challenges')
+                        ->whereRaw('ctf_challenges.id = challenges.challengeable_id')
+                        ->whereIn('ctf_challenges.category_id', $categoryIds);
+                });
+            }
+        }
+
+        if ($request->has('difficulty_ids')) {
+            $difficultyIds = explode(',', $request->input('difficulty_ids'));
+            $difficultyIds = array_filter(array_map('intval', $difficultyIds));
+
+            if (! empty($difficultyIds)) {
+                $query->whereIn('difficulty_id', $difficultyIds);
+            }
+        }
+
+        if ($request->has('hide_solved') && $request->boolean('hide_solved')) {
+            $userId = $request->user()->id;
+
+            $query->whereDoesntHave('submissions', function ($q) use ($userId) {
+                $q->where('user_id', $userId)
+                    ->where('is_correct', true);
+            });
+        }
+
         $sortField     = request("sort_field", "created_at");
         $sortDirection = request("sort_direction", "desc");
         $query->orderBy($sortField, $sortDirection);
 
         $challenges = $query->paginate(15);
+
+        $challenges->load(['challengeable', 'difficulty', 'challengeable.category']);
+
+        $challenges->getCollection()->transform(function ($challenge) use ($request) {
+            $challenge->is_solved = ChallengeSubmission::where('challenge_id', $challenge->id)
+                ->where('user_id', $request->user()->id)
+                ->where('is_correct', true)
+                ->exists();
+            return $challenge;
+        });
 
         return ChallengeResource::collection($challenges)->additional([
             'success' => true,
