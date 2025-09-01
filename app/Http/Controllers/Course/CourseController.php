@@ -3,9 +3,7 @@ namespace App\Http\Controllers\Course;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CourseResource;
-use App\Models\CodingActivityProblem;
 use App\Models\Course;
-use App\Models\QuizQuestion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -37,6 +35,13 @@ class CourseController extends Controller
                     ->orWhere('description', 'like', "%{$searchTerm}%")
                     ->orWhere('short_description', 'like', "%{$searchTerm}%");
             });
+        }
+
+        if ($request->has('duration_min') && $request->has('duration_max')) {
+            $query->whereBetween('estimated_duration', [
+                $request->input('duration_min'),
+                $request->input('duration_max'),
+            ]);
         }
 
         if ($request->has('category_id')) {
