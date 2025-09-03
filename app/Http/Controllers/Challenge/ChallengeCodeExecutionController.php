@@ -2,58 +2,36 @@
 namespace App\Http\Controllers\Challenge;
 
 use App\Http\Controllers\Controller;
-use App\Models\Challenge;
-use App\Models\ChallengeSubmission;
-use App\Models\CodingChallenge;
-use App\Models\ProgrammingLanguage;
-use App\Services\Judge0TestRunner;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use App\Services\CodeExecutionService;
 
 class ChallengeCodeExecutionController extends Controller
 {
-    private $testRunner;
+    private $codeExecutionService;
 
-    public function __construct(Judge0TestRunner $testRunner)
+    public function __construct(CodeExecutionService $codeExecutionService)
     {
-        $this->testRunner = $testRunner;
+        $this->codeExecutionService = $codeExecutionService;
     }
 
-    public function executeCode(Request $request, string $slug)
+    public function executeCode(Request $request, string $slug): JsonResponse
     {
-        $request->validate([
+        $validatedData = $request->validate([
             'language_id' => 'required|integer|exists:programming_languages,id',
             'user_code'   => 'required|string',
         ]);
 
         try {
-            $challenge = Challenge::where('slug', $slug)
-                ->where('challengeable_type', CodingChallenge::class)->firstOrFail();
-
-            if (! $challenge || ! $challenge->challengeable) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Challenge not found',
-                ], 404);
-            }
-
-            $language = ProgrammingLanguage::findOrFail($request->language_id);
-
-            $codingChallenge = $challenge->challengeable;
-
-            $testCases = json_decode($codingChallenge->test_cases, true);
-
-            if (empty($testCases)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No test cases found for this challenge',
-                ], 400);
-            }
-
-            $results = $this->testRunner->runTestCases($codingChallenge, $language, $request->user_code, 3);
+            $result = $this->codeExecutionService->executeCode(
+                $slug,
+                $validatedData['language_id'],
+                $validatedData['user_code']
+            );
 
             return response()->json([
                 'success' => true,
-                'data'    => $results,
+                'data'    => $result['results'],
             ]);
 
         } catch (\Exception $e) {
@@ -65,50 +43,24 @@ class ChallengeCodeExecutionController extends Controller
         }
     }
 
-    public function submitCode(Request $request, string $slug)
+    public function submitCode(Request $request, string $slug): JsonResponse
     {
-        $request->validate([
+        $validatedData = $request->validate([
             'language_id' => 'required|integer|exists:programming_languages,id',
             'user_code'   => 'required|string',
         ]);
 
         try {
-            $challenge = Challenge::where('slug', $slug)
-                ->where('challengeable_type', CodingChallenge::class)->firstOrFail();
-
-            if (! $challenge || ! $challenge->challengeable) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Challenge not found',
-                ], 404);
-            }
-
-            $language = ProgrammingLanguage::findOrFail($request->language_id);
-
-            $codingChallenge = $challenge->challengeable;
-
-            $testCases = json_decode($codingChallenge->test_cases, true);
-
-            if (empty($testCases)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No test cases found for this challenge',
-                ], 400);
-            }
-
-            $results = $this->testRunner->runTestCases($codingChallenge, $language, $request->user_code);
-
-            ChallengeSubmission::create([
-                'user_id'            => $request->user()->id,
-                'challenge_id'       => $challenge->id,
-                'submission_content' => $request->user_code,
-                'is_correct'         => collect($results)->every(fn($result) => $result['status'] === 'passed'),
-                'results'            => $results,
-            ]);
+            $result = $this->codeExecutionService->submitCode(
+                $slug,
+                $validatedData['language_id'],
+                $validatedData['user_code'],
+                $request->user()->id
+            );
 
             return response()->json([
                 'success' => true,
-                'data'    => $results,
+                'data'    => $result['results'],
             ]);
 
         } catch (\Exception $e) {
