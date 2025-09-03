@@ -33,7 +33,6 @@ class CtfSubmissionController extends Controller
             'challenge_id'       => $challenge->id,
             'submission_content' => $request->flag,
             'is_correct'         => $isCorrect,
-            'results'            => ['submitted_at' => now()],
         ]);
 
         if ($isCorrect) {
