@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'judge0' => [
+        'url' => env('JUDGE0_URL', 'https://judge0-ce.p.rapidapi.com'),
+        'api_key' => env('JUDGE0_API_KEY'),
+    ],
 ];
