@@ -60,7 +60,32 @@ class ChallengeCodeExecutionController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data'    => $result['results'],
+                'data'    => $result,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Code execution failed',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get user's submission history for a challenge
+     */
+    public function getSubmissionHistory(Request $request, string $slug): JsonResponse
+    {
+        try {
+            $result = $this->codeExecutionService->getUserSubmissionHistory(
+                $slug,
+                $request->user()->id
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $result
             ]);
 
         } catch (\Exception $e) {
