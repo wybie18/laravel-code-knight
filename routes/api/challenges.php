@@ -28,4 +28,5 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('challenges/coding', [CodingChallengeController::class, 'index']);
     Route::get('challenges/coding/{coding}', [CodingChallengeController::class, 'show']);
     Route::post('challenges/coding/{coding}/execute-code', [ChallengeCodeExecutionController::class, 'executeCode']);
+    Route::post('challenges/coding/{coding}/submit', [ChallengeCodeExecutionController::class, 'submitCode']);
 });
