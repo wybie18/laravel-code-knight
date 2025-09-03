@@ -12,13 +12,19 @@ class CodingChallengeResource extends JsonResource
      */
     public function toArray($request)
     {
+        $allTestCases = json_decode($this->test_cases, true);
+        $isAdmin      = $request->user() && $request->user()->tokenCan('admin:*');
+
+        if ($isAdmin) {
+            $testCasesToShow = $allTestCases;
+        } else {
+            $testCasesToShow = array_slice($allTestCases, 0, 3);
+        }
+
         return [
             'id'                    => $this->id,
             'problem_statement'     => $this->problem_statement,
-            'test_cases'            => $this->when(
-                $request->user() && $request->user()->tokenCan('admin:*'),
-                json_decode($this->test_cases)
-            ),
+            'test_cases'            => $testCasesToShow,
             'programming_languages' => ProgrammingLanguageResource::collection(
                 $this->whenLoaded('programmingLanguages')
             ),
