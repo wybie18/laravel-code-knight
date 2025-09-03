@@ -6,7 +6,7 @@ use App\Models\ChallengeSubmission;
 use App\Models\CodingChallenge;
 use App\Models\ProgrammingLanguage;
 
-class CodeExecutionService
+class ChallengeCodeExecutionService
 {
     private $testRunner;
 
@@ -80,81 +80,5 @@ class CodeExecutionService
             'is_correct'         => collect($results)->every(fn($result) => $result['status'] === 'passed'),
             'results'            => $results,
         ]);
-    }
-}
-
-// Updated Controller
-namespace App\Http\Controllers\Challenge;
-
-use App\Http\Controllers\Controller;
-use App\Services\CodeExecutionService;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-
-class ChallengeCodeExecutionController extends Controller
-{
-    private $codeExecutionService;
-
-    public function __construct(CodeExecutionService $codeExecutionService)
-    {
-        $this->codeExecutionService = $codeExecutionService;
-    }
-
-    public function executeCode(Request $request, string $slug): JsonResponse
-    {
-        $validatedData = $request->validate([
-            'language_id' => 'required|integer|exists:programming_languages,id',
-            'user_code'   => 'required|string',
-        ]);
-
-        try {
-            $result = $this->codeExecutionService->executeCode(
-                $slug,
-                $validatedData['language_id'],
-                $validatedData['user_code']
-            );
-
-            return response()->json([
-                'success' => true,
-                'data'    => $result['results'],
-            ]);
-
-        } catch (\Exception $e) {
-            return $this->handleError($e);
-        }
-    }
-
-    public function submitCode(Request $request, string $slug): JsonResponse
-    {
-        $validatedData = $request->validate([
-            'language_id' => 'required|integer|exists:programming_languages,id',
-            'user_code'   => 'required|string',
-        ]);
-
-        try {
-            $result = $this->codeExecutionService->submitCode(
-                $slug,
-                $validatedData['language_id'],
-                $validatedData['user_code'],
-                $request->user()->id
-            );
-
-            return response()->json([
-                'success' => true,
-                'data'    => $result['results'],
-            ]);
-
-        } catch (\Exception $e) {
-            return $this->handleError($e);
-        }
-    }
-
-    private function handleError(\Exception $e): JsonResponse
-    {
-        return response()->json([
-            'success' => false,
-            'message' => 'Code execution failed',
-            'error'   => $e->getMessage(),
-        ], 500);
     }
 }
