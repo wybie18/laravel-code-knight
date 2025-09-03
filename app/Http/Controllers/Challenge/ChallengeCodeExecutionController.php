@@ -4,13 +4,13 @@ namespace App\Http\Controllers\Challenge;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use App\Services\CodeExecutionService;
+use App\Services\ChallengeCodeExecutionService;
 
 class ChallengeCodeExecutionController extends Controller
 {
     private $codeExecutionService;
 
-    public function __construct(CodeExecutionService $codeExecutionService)
+    public function __construct(ChallengeCodeExecutionService $codeExecutionService)
     {
         $this->codeExecutionService = $codeExecutionService;
     }
