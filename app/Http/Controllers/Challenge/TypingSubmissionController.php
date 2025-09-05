@@ -1,0 +1,90 @@
+<?php
+namespace App\Http\Controllers\Challenge;
+
+use App\Http\Controllers\Controller;
+use App\Models\Challenge;
+use App\Models\ChallengeSubmission;
+use App\Models\TypingChallenge;
+use Illuminate\Http\Request;
+
+class TypingSubmissionController extends Controller
+{
+    public function getSubmissionHistory(Request $request, string $slug)
+    {
+        if (! $request->user()->tokenCan('admin:*') && ! $request->user()->tokenCan('challenge:view')) {
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
+        $challenge = Challenge::where('slug', $slug)
+            ->where('challengeable_type', TypingChallenge::class)->firstOrFail();
+
+        $submissions = ChallengeSubmission::where('challenge_id', $challenge->id)->orderBy('created_at', 'desc')->get();
+
+        return response()->json([
+            'success' => true,
+            'data'    => $submissions,
+        ], 200);
+    }
+
+    public function store(Request $request, string $slug)
+    {
+        $request->validate([
+            'user_input'          => 'required|string',
+            'wpm'                 => 'required|integer|min:0',
+            'accuracy'            => 'required|numeric|between:0,100',
+            'errors'              => 'required|integer|min:0',
+            'time_taken'          => 'required|numeric|min:0',
+            'total_chars_typed'   => 'required|integer|min:0',
+            'correct_chars_typed' => 'required|integer|min:0',
+            'is_completed'        => 'required|boolean',
+        ]);
+
+        $user      = $request->user();
+        $challenge = Challenge::where('slug', $slug)
+            ->where('challengeable_type', TypingChallenge::class)->firstOrFail();
+        $typingChallenge = $challenge->challengeable;
+
+        $isCorrect = $request->wpm >= $typingChallenge->target_wpm
+        && $request->accuracy >= $typingChallenge->target_accuracy
+        && $request->is_completed;
+
+        $alreadySolved = ChallengeSubmission::where('user_id', $user->id)
+            ->where('challenge_id', $challenge->id)
+            ->where('is_correct', true)
+            ->exists();
+
+        if ($alreadySolved) {
+            return response()->json(['success' => false, 'message' => 'Challenge already completed.'], 400);
+        }
+
+        ChallengeSubmission::create([
+            'user_id'            => $user->id,
+            'challenge_id'       => $challenge->id,
+            'submission_content' => $request->user_input,
+            'is_correct'         => $isCorrect,
+            'results'            => [
+                'wpm'                 => $request->wpm,
+                'accuracy'            => $request->accuracy,
+                'errors'              => $request->errors,
+                'time_taken'          => $request->time_taken,
+                'total_chars_typed'   => $request->total_chars_typed,
+                'correct_chars_typed' => $request->correct_chars_typed,
+                'is_completed'        => $request->is_completed,
+            ],
+        ]);
+
+        if ($isCorrect) {
+            $user->expTransactions()->create([
+                'amount'      => $challenge->points,
+                'description' => "Completed Typing Challenge: {$challenge->title}",
+                'source_type' => Challenge::class,
+                'source_id'   => $challenge->id,
+            ]);
+            $user->increment('total_xp', $challenge->points);
+
+            return response()->json(['success' => true, 'message' => 'Challenge completed! All targets achieved.'], 200);
+        }
+
+        return response()->json(['success' => false, 'message' => 'Keep practicing! Try to meet the WPM and accuracy targets.'], 200);
+    }
+}
