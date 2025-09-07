@@ -15,14 +15,15 @@ return new class extends Migration
             $table->id();
             $table->foreignId('course_module_id')->constrained('course_modules')->onDelete('cascade');
             $table->string('title');
-            $table->string('slug')->unique();
+            $table->string('slug');
             $table->text('content')->nullable();
             $table->integer('exp_reward')->default(0);
             $table->integer('estimated_duration')->nullable(); // in minutes
             $table->integer('order');
             $table->timestamps();
-            $table->unique(['module_id', 'order']);
-            $table->unique(['module_id', 'slug']);
+
+            $table->unique(['course_module_id', 'order']);
+            $table->unique(['course_module_id', 'slug']);
         });
     }
 

@@ -17,9 +17,9 @@ class Activity extends Model
         'is_required',
     ];
 
-    public function lesson()
+    public function module()
     {
-        return $this->belongsTo(Lesson::class);
+        return $this->belongsTo(CourseModule::class);
     }
 
     public function codingActivityProblem()

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('activities', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('lesson_id')->constrained()->onDelete('cascade');
+            $table->foreignId('course_module_id')->constrained('course_modules')->onDelete('cascade'); // Changed from lesson_id
             $table->string('title');
             $table->text('description')->nullable();
             $table->enum('type', ['content', 'code', 'quiz']);
@@ -22,6 +22,8 @@ return new class extends Migration
             $table->integer('order')->default(0);
             $table->boolean('is_required')->default(true);
             $table->timestamps();
+
+            $table->unique(['course_module_id', 'order']);
         });
     }
 

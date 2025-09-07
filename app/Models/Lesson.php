@@ -32,11 +32,6 @@ class Lesson extends Model
         return $this->belongsTo(CourseModule::class);
     }
 
-    public function activities()
-    {
-        return $this->hasMany(Activity::class);
-    }
-
     public function userProgress()
     {
         return $this->hasMany(UserLessonProgress::class);
