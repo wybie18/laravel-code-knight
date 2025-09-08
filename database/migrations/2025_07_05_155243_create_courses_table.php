@@ -18,6 +18,7 @@ return new class extends Migration
             $table->text('description');
             $table->text('short_description');
             $table->text('objectives')->nullable();
+            $table->text('requirements')->nullable();
             $table->string('thumbnail')->nullable();
             $table->foreignId('difficulty_id')->constrained('difficulties');
             $table->foreignId('category_id')->constrained('course_categories');
