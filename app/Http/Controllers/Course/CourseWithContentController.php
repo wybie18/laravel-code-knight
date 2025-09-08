@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers\Course;
 
 use App\Http\Controllers\Controller;
@@ -10,70 +9,71 @@ use App\Models\QuizQuestion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class CourseWithContentController extends Controller
 {
-        /**
+    /**
      * Store a newly created course with all nested content
      */
     public function storeWithContent(Request $request)
     {
         $validated = $request->validate([
-            'title'                                                                 => 'required|string|max:255|unique:courses,title',
-            'description'                                                           => 'required|string',
-            'short_description'                                                     => 'required|string|max:500',
-            'objectives'                                                            => 'required|string',
-            'difficulty_id'                                                         => 'required|exists:difficulties,id',
-            'category_id'                                                           => 'required|exists:course_categories,id',
-            'programming_language_id'                                               => 'required|exists:programming_languages,id',
-            'exp_reward'                                                            => 'nullable|integer|min:0',
-            'estimated_duration'                                                    => 'nullable|integer|min:0',
-            'is_published'                                                          => 'sometimes|boolean',
-            'skill_tag_ids'                                                         => 'sometimes|array',
-            'skill_tag_ids.*'                                                       => 'exists:skill_tags,id',
-            'thumbnail'                                                             => 'sometimes|image|max:2048', // 2MB max
+            'title'                                                       => 'required|string|max:255|unique:courses,title',
+            'description'                                                 => 'required|string',
+            'short_description'                                           => 'required|string|max:500',
+            'objectives'                                                  => 'required|string',
+            'requirements'                                                => 'nullable|string',
+            'difficulty_id'                                               => 'required|exists:difficulties,id',
+            'category_id'                                                 => 'required|exists:course_categories,id',
+            'programming_language_id'                                     => 'required|exists:programming_languages,id',
+            'exp_reward'                                                  => 'nullable|integer|min:0',
+            'estimated_duration'                                          => 'nullable|integer|min:0',
+            'is_published'                                                => 'sometimes|boolean',
+            'skill_tag_ids'                                               => 'sometimes|array',
+            'skill_tag_ids.*'                                             => 'exists:skill_tags,id',
+            'thumbnail'                                                   => 'sometimes|image|max:2048', // 2MB max
 
             // Modules validation
-            'modules'                                                               => 'sometimes|array',
-            'modules.*.title'                                                       => 'required|string|max:255',
-            'modules.*.description'                                                 => 'nullable|string',
-            'modules.*.order'                                                       => 'required|integer|min:1',
+            'modules'                                                     => 'sometimes|array',
+            'modules.*.title'                                             => 'required|string|max:255',
+            'modules.*.description'                                       => 'nullable|string',
+            'modules.*.order'                                             => 'required|integer|min:1',
 
             // Lessons validation
-            'modules.*.lessons'                                                     => 'sometimes|array',
-            'modules.*.lessons.*.title'                                             => 'required|string|max:255',
-            'modules.*.lessons.*.content'                                           => 'nullable|string',
-            'modules.*.lessons.*.exp_reward'                                        => 'nullable|integer|min:0',
-            'modules.*.lessons.*.estimated_duration'                                => 'nullable|integer|min:0',
-            'modules.*.lessons.*.order'                                             => 'required|integer|min:1',
+            'modules.*.lessons'                                           => 'sometimes|array',
+            'modules.*.lessons.*.title'                                   => 'required|string|max:255',
+            'modules.*.lessons.*.content'                                 => 'nullable|string',
+            'modules.*.lessons.*.exp_reward'                              => 'nullable|integer|min:0',
+            'modules.*.lessons.*.estimated_duration'                      => 'nullable|integer|min:0',
+            'modules.*.lessons.*.order'                                   => 'required|integer|min:1',
 
             // Activities validation
-            'modules.*.lessons.*.activities'                                        => 'sometimes|array',
-            'modules.*.lessons.*.activities.*.title'                                => 'required|string|max:255',
-            'modules.*.lessons.*.activities.*.description'                          => 'nullable|string',
-            'modules.*.lessons.*.activities.*.type'                                 => 'required|in:code,quiz',
-            'modules.*.lessons.*.activities.*.exp_reward'                           => 'nullable|integer|min:0',
-            'modules.*.lessons.*.activities.*.order'                                => 'required|integer|min:1',
-            'modules.*.lessons.*.activities.*.is_required'                          => 'sometimes|boolean',
+            'modules.*.activities'                                        => 'sometimes|array',
+            'modules.*.activities.*.title'                                => 'required|string|max:255',
+            'modules.*.activities.*.description'                          => 'nullable|string',
+            'modules.*.activities.*.type'                                 => 'required|in:content,code,quiz',
+            'modules.*.activities.*.exp_reward'                           => 'nullable|integer|min:0',
+            'modules.*.activities.*.order'                                => 'required|integer|min:1',
+            'modules.*.activities.*.is_required'                          => 'sometimes|boolean',
 
             // Coding problem validation
-            'modules.*.lessons.*.activities.*.problem.problem_statement'            => 'required_if:modules.*.lessons.*.activities.*.type,code|nullable|string',
-            'modules.*.lessons.*.activities.*.problem.starter_code'                 => 'nullable|string',
-            'modules.*.lessons.*.activities.*.problem.test_cases'                   => 'required_if:modules.*.lessons.*.activities.*.type,code|nullable|array',
-            'modules.*.lessons.*.activities.*.problem.test_cases.*.input'           => 'required|string',
-            'modules.*.lessons.*.activities.*.problem.test_cases.*.expected_output' => 'required|string',
+            'modules.*.activities.*.problem.problem_statement'            => 'required_if:modules.*.activities.*.type,code|nullable|string',
+            'modules.*.activities.*.problem.starter_code'                 => 'nullable|string',
+            'modules.*.activities.*.problem.test_cases'                   => 'required_if:modules.*.activities.*.type,code|nullable|array',
+            'modules.*.activities.*.problem.test_cases.*.input'           => 'nullable|string',
+            'modules.*.activities.*.problem.test_cases.*.expected_output' => 'required|string',
 
             // Quiz questions validation
-            'modules.*.lessons.*.activities.*.questions'                            => 'required_if:modules.*.lessons.*.activities.*.type,quiz|nullable|array',
-            'modules.*.lessons.*.activities.*.questions.*.question'                 => 'required|string',
-            'modules.*.lessons.*.activities.*.questions.*.type'                     => 'required|in:multiple_choice,fill_blank,boolean',
-            'modules.*.lessons.*.activities.*.questions.*.options'                  => 'nullable|array',
-            'modules.*.lessons.*.activities.*.questions.*.correct_answer'           => 'required|string',
-            'modules.*.lessons.*.activities.*.questions.*.explanation'              => 'nullable|string',
-            'modules.*.lessons.*.activities.*.questions.*.points'                   => 'nullable|integer|min:0',
-            'modules.*.lessons.*.activities.*.questions.*.order'                    => 'required|integer|min:1',
+            'modules.*.activities.*.questions'                            => 'required_if:modules.*.activities.*.type,quiz|nullable|array',
+            'modules.*.activities.*.questions.*.question'                 => 'required|string',
+            'modules.*.activities.*.questions.*.type'                     => 'required|in:multiple_choice,fill_blank,boolean',
+            'modules.*.activities.*.questions.*.options'                  => 'nullable|array',
+            'modules.*.activities.*.questions.*.correct_answer'           => 'required|string',
+            'modules.*.activities.*.questions.*.explanation'              => 'nullable|string',
+            'modules.*.activities.*.questions.*.points'                   => 'nullable|integer|min:0',
+            'modules.*.activities.*.questions.*.order'                    => 'required|integer|min:1',
         ]);
 
         DB::beginTransaction();
@@ -87,7 +87,7 @@ class CourseWithContentController extends Controller
 
             // Create the course
             $courseData = collect($validated)->only([
-                'title', 'description', 'short_description', 'objectives',
+                'title', 'description', 'short_description', 'objectives', 'requirements',
                 'difficulty_id', 'category_id', 'programming_language_id',
                 'exp_reward', 'estimated_duration', 'is_published',
             ])->toArray();
@@ -116,7 +116,7 @@ class CourseWithContentController extends Controller
 
                     if (isset($moduleData['lessons'])) {
                         foreach ($moduleData['lessons'] as $lessonData) {
-                            $lesson = $module->lessons()->create([
+                            $module->lessons()->create([
                                 'title'              => $lessonData['title'],
                                 'content'            => $lessonData['content'] ?? null,
                                 'exp_reward'         => $lessonData['exp_reward'] ?? 0,
@@ -124,46 +124,45 @@ class CourseWithContentController extends Controller
                                 'order'              => $lessonData['order'],
                                 'slug'               => $this->generateTypeSlug($lessonData['title'], $module, 'lessons'),
                             ]);
+                        }
+                    }
 
-                            if (isset($lessonData['activities'])) {
-                                foreach ($lessonData['activities'] as $activityData) {
-                                    $activity = $lesson->activities()->create([
-                                        'title'       => $activityData['title'],
-                                        'description' => $activityData['description'] ?? null,
-                                        'type'        => $activityData['type'],
-                                        'exp_reward'  => $activityData['exp_reward'] ?? 0,
-                                        'order'       => $activityData['order'],
-                                        'is_required' => $activityData['is_required'] ?? true,
+                    if (isset($moduleData['activities'])) {
+                        foreach ($moduleData['activities'] as $activityData) {
+                            $activity = $module->activities()->create([
+                                'title'       => $activityData['title'],
+                                'description' => $activityData['description'] ?? null,
+                                'type'        => $activityData['type'],
+                                'exp_reward'  => $activityData['exp_reward'] ?? 0,
+                                'order'       => $activityData['order'],
+                                'is_required' => $activityData['is_required'] ?? true,
+                            ]);
+
+                            if ($activityData['type'] === 'code' && isset($activityData['problem'])) {
+                                $testCasesJson = json_encode($activityData['problem']['test_cases']);
+
+                                $codingProblem = CodingActivityProblem::create([
+                                    'problem_statement' => $activityData['problem']['problem_statement'],
+                                    'starter_code'      => $activityData['problem']['starter_code'] ?? '',
+                                    'test_cases'        => $testCasesJson,
+                                ]);
+
+                                $activity->update(['coding_activity_problem_id' => $codingProblem->id]);
+                            }
+
+                            // Handle quiz activities
+                            if ($activityData['type'] === 'quiz' && isset($activityData['questions'])) {
+                                foreach ($activityData['questions'] as $questionData) {
+                                    QuizQuestion::create([
+                                        'activity_id'    => $activity->id,
+                                        'question'       => $questionData['question'],
+                                        'type'           => $questionData['type'],
+                                        'options'        => json_encode($questionData['options'] ?? []),
+                                        'correct_answer' => json_encode($questionData['correct_answer']),
+                                        'explanation'    => $questionData['explanation'] ?? null,
+                                        'points'         => $questionData['points'] ?? 1,
+                                        'order'          => $questionData['order'],
                                     ]);
-
-                                    // Handle coding activities
-                                    if ($activityData['type'] === 'code' && isset($activityData['problem'])) {
-                                        $testCasesJson = json_encode($activityData['problem']['test_cases']);
-
-                                        $codingProblem = CodingActivityProblem::create([
-                                            'problem_statement' => $activityData['problem']['problem_statement'],
-                                            'starter_code'      => $activityData['problem']['starter_code'] ?? '',
-                                            'test_cases'        => $testCasesJson,
-                                        ]);
-
-                                        $activity->update(['coding_activity_problem_id' => $codingProblem->id]);
-                                    }
-
-                                    // Handle quiz activities
-                                    if ($activityData['type'] === 'quiz' && isset($activityData['questions'])) {
-                                        foreach ($activityData['questions'] as $questionData) {
-                                            QuizQuestion::create([
-                                                'activity_id'    => $activity->id,
-                                                'question'       => $questionData['question'],
-                                                'type'           => $questionData['type'],
-                                                'options'        => json_encode($questionData['options'] ?? []),
-                                                'correct_answer' => json_encode($questionData['correct_answer']),
-                                                'explanation'    => $questionData['explanation'] ?? null,
-                                                'points'         => $questionData['points'] ?? 1,
-                                                'order'          => $questionData['order'],
-                                            ]);
-                                        }
-                                    }
                                 }
                             }
                         }
@@ -175,8 +174,8 @@ class CourseWithContentController extends Controller
 
             $course->load([
                 'difficulty', 'category', 'skillTags', 'programmingLanguage',
-                'modules.lessons.activities.codingActivityProblem',
-                'modules.lessons.activities.quizQuestions',
+                'modules.lessons', 'modules.activities.codingActivityProblem',
+                'modules.activities.quizQuestions',
             ]);
 
             return (new CourseResource($course))->additional([
@@ -205,69 +204,70 @@ class CourseWithContentController extends Controller
     public function updateWithContent(Request $request, Course $course)
     {
         $validated = $request->validate([
-            'title'                                                                 => [
+            'title'                                                       => [
                 'required',
                 'string',
                 'max:255',
                 Rule::unique('courses')->ignore($course->id),
             ],
-            'description'                                                           => 'required|string',
-            'short_description'                                                     => 'required|string|max:500',
-            'objectives'                                                            => 'required|string',
-            'difficulty_id'                                                         => 'required|exists:difficulties,id',
-            'category_id'                                                           => 'required|exists:course_categories,id',
-            'programming_language_id'                                               => 'required|exists:programming_languages,id',
-            'exp_reward'                                                            => 'nullable|integer|min:0',
-            'estimated_duration'                                                    => 'nullable|integer|min:0',
-            'is_published'                                                          => 'sometimes|boolean',
-            'skill_tag_ids'                                                         => 'sometimes|array',
-            'skill_tag_ids.*'                                                       => 'exists:skill_tags,id',
-            'thumbnail'                                                             => 'sometimes|image|max:2048', // 2MB max
-            'remove_thumbnail'                                                      => 'sometimes|boolean',        // Flag to remove existing thumbnail
+            'description'                                                 => 'required|string',
+            'short_description'                                           => 'required|string|max:500',
+            'objectives'                                                  => 'required|string',
+            'requirements'                                                => 'nullable|string',
+            'difficulty_id'                                               => 'required|exists:difficulties,id',
+            'category_id'                                                 => 'required|exists:course_categories,id',
+            'programming_language_id'                                     => 'required|exists:programming_languages,id',
+            'exp_reward'                                                  => 'nullable|integer|min:0',
+            'estimated_duration'                                          => 'nullable|integer|min:0',
+            'is_published'                                                => 'sometimes|boolean',
+            'skill_tag_ids'                                               => 'sometimes|array',
+            'skill_tag_ids.*'                                             => 'exists:skill_tags,id',
+            'thumbnail'                                                   => 'sometimes|image|max:2048',
+            'remove_thumbnail'                                            => 'sometimes|boolean',
 
             // Modules validation
-            'modules'                                                               => 'sometimes|array',
-            'modules.*.id'                                                          => 'sometimes|exists:course_modules,id', // For updating existing modules
-            'modules.*.title'                                                       => 'required|string|max:255',
-            'modules.*.description'                                                 => 'nullable|string',
-            'modules.*.order'                                                       => 'required|integer|min:1',
+            'modules'                                                     => 'sometimes|array',
+            'modules.*.id'                                                => 'sometimes|exists:course_modules,id',
+            'modules.*.title'                                             => 'required|string|max:255',
+            'modules.*.description'                                       => 'nullable|string',
+            'modules.*.order'                                             => 'required|integer|min:1',
 
-            // Lessons validation
-            'modules.*.lessons'                                                     => 'sometimes|array',
-            'modules.*.lessons.*.id'                                                => 'sometimes|exists:lessons,id', // For updating existing lessons
-            'modules.*.lessons.*.title'                                             => 'required|string|max:255',
-            'modules.*.lessons.*.content'                                           => 'nullable|string',
-            'modules.*.lessons.*.exp_reward'                                        => 'nullable|integer|min:0',
-            'modules.*.lessons.*.estimated_duration'                                => 'nullable|integer|min:0',
-            'modules.*.lessons.*.order'                                             => 'required|integer|min:1',
+            // Lessons validation - now directly under modules
+            'modules.*.lessons'                                           => 'sometimes|array',
+            'modules.*.lessons.*.id'                                      => 'sometimes|exists:lessons,id',
+            'modules.*.lessons.*.title'                                   => 'required|string|max:255',
+            'modules.*.lessons.*.content'                                 => 'nullable|string',
+            'modules.*.lessons.*.exp_reward'                              => 'nullable|integer|min:0',
+            'modules.*.lessons.*.estimated_duration'                      => 'nullable|integer|min:0',
+            'modules.*.lessons.*.order'                                   => 'required|integer|min:1',
 
-            // Activities validation
-            'modules.*.lessons.*.activities'                                        => 'sometimes|array',
-            'modules.*.lessons.*.activities.*.id'                                   => 'sometimes|exists:activities,id', // For updating existing activities
-            'modules.*.lessons.*.activities.*.title'                                => 'required|string|max:255',
-            'modules.*.lessons.*.activities.*.description'                          => 'nullable|string',
-            'modules.*.lessons.*.activities.*.type'                                 => 'required|in:code,quiz',
-            'modules.*.lessons.*.activities.*.exp_reward'                           => 'nullable|integer|min:0',
-            'modules.*.lessons.*.activities.*.order'                                => 'required|integer|min:1',
-            'modules.*.lessons.*.activities.*.is_required'                          => 'sometimes|boolean',
+            // Activities validation - now directly under modules
+            'modules.*.activities'                                        => 'sometimes|array',
+            'modules.*.activities.*.id'                                   => 'sometimes|exists:activities,id',
+            'modules.*.activities.*.title'                                => 'required|string|max:255',
+            'modules.*.activities.*.description'                          => 'nullable|string',
+            'modules.*.activities.*.type'                                 => 'required|in:content,code,quiz',
+            'modules.*.activities.*.exp_reward'                           => 'nullable|integer|min:0',
+            'modules.*.activities.*.order'                                => 'required|integer|min:1',
+            'modules.*.activities.*.is_required'                          => 'sometimes|boolean',
 
             // Coding problem validation
-            'modules.*.lessons.*.activities.*.problem.problem_statement'            => 'required_if:modules.*.lessons.*.activities.*.type,code|nullable|string',
-            'modules.*.lessons.*.activities.*.problem.starter_code'                 => 'nullable|string',
-            'modules.*.lessons.*.activities.*.problem.test_cases'                   => 'required_if:modules.*.lessons.*.activities.*.type,code|nullable|array',
-            'modules.*.lessons.*.activities.*.problem.test_cases.*.input'           => 'required|string',
-            'modules.*.lessons.*.activities.*.problem.test_cases.*.expected_output' => 'required|string',
+            'modules.*.activities.*.problem.problem_statement'            => 'required_if:modules.*.activities.*.type,code|nullable|string',
+            'modules.*.activities.*.problem.starter_code'                 => 'nullable|string',
+            'modules.*.activities.*.problem.test_cases'                   => 'required_if:modules.*.activities.*.type,code|nullable|array',
+            'modules.*.activities.*.problem.test_cases.*.input'           => 'nullable|string',
+            'modules.*.activities.*.problem.test_cases.*.expected_output' => 'required|string',
 
             // Quiz questions validation
-            'modules.*.lessons.*.activities.*.questions'                            => 'required_if:modules.*.lessons.*.activities.*.type,quiz|nullable|array',
-            'modules.*.lessons.*.activities.*.questions.*.id'                       => 'sometimes|exists:quiz_questions,id', // For updating existing questions
-            'modules.*.lessons.*.activities.*.questions.*.question'                 => 'required|string',
-            'modules.*.lessons.*.activities.*.questions.*.type'                     => 'required|in:multiple_choice,fill_blank,boolean',
-            'modules.*.lessons.*.activities.*.questions.*.options'                  => 'nullable|array',
-            'modules.*.lessons.*.activities.*.questions.*.correct_answer'           => 'required|string',
-            'modules.*.lessons.*.activities.*.questions.*.explanation'              => 'nullable|string',
-            'modules.*.lessons.*.activities.*.questions.*.points'                   => 'nullable|integer|min:0',
-            'modules.*.lessons.*.activities.*.questions.*.order'                    => 'required|integer|min:1',
+            'modules.*.activities.*.questions'                            => 'required_if:modules.*.activities.*.type,quiz|nullable|array',
+            'modules.*.activities.*.questions.*.id'                       => 'sometimes|exists:quiz_questions,id',
+            'modules.*.activities.*.questions.*.question'                 => 'required|string',
+            'modules.*.activities.*.questions.*.type'                     => 'required|in:multiple_choice,fill_blank,boolean',
+            'modules.*.activities.*.questions.*.options'                  => 'nullable|array',
+            'modules.*.activities.*.questions.*.correct_answer'           => 'required|string',
+            'modules.*.activities.*.questions.*.explanation'              => 'nullable|string',
+            'modules.*.activities.*.questions.*.points'                   => 'nullable|integer|min:0',
+            'modules.*.activities.*.questions.*.order'                    => 'required|integer|min:1',
         ]);
 
         DB::beginTransaction();
@@ -286,7 +286,6 @@ class CourseWithContentController extends Controller
 
             // Handle new thumbnail upload
             if ($request->hasFile('thumbnail')) {
-                // Delete old thumbnail if it exists
                 if ($oldThumbnailPath && Storage::disk('public')->exists($oldThumbnailPath)) {
                     Storage::disk('public')->delete($oldThumbnailPath);
                 }
@@ -295,19 +294,16 @@ class CourseWithContentController extends Controller
 
             // Update the course
             $courseData = collect($validated)->only([
-                'title', 'description', 'short_description', 'objectives',
+                'title', 'description', 'short_description', 'objectives', 'requirements',
                 'difficulty_id', 'category_id', 'programming_language_id',
                 'exp_reward', 'estimated_duration', 'is_published',
             ])->toArray();
 
-            // Update slug if title changed
             if ($course->title !== $validated['title']) {
                 $courseData['slug'] = $this->generateTypeSlug($validated['title'], $course->id);
             }
 
-            // Update thumbnail path
             $courseData['thumbnail'] = $thumbnailPath;
-
             $course->update($courseData);
 
             // Sync skill tags
@@ -315,23 +311,22 @@ class CourseWithContentController extends Controller
                 $course->skillTags()->sync($validated['skill_tag_ids']);
             }
 
-            // Track existing IDs to determine what to delete
+            // Track existing IDs
             $existingModuleIds   = [];
             $existingLessonIds   = [];
             $existingActivityIds = [];
             $existingQuestionIds = [];
 
-            // Handle modules, lessons, and activities
+            // Handle modules
             if (isset($validated['modules'])) {
-                // First pass: Update existing modules and collect their IDs
                 $modulesToCreate = [];
-                $maxOrder        = $course->modules()->max('order') ?? 0;
 
+                // Update existing modules
                 foreach ($validated['modules'] as $index => $moduleData) {
                     if (isset($moduleData['id'])) {
                         $module = $course->modules()->findOrFail($moduleData['id']);
 
-                        // Temporarily set a high order to avoid conflicts during update
+                        // Temporarily set high order to avoid conflicts
                         $tempOrder = 9999 + $index;
                         $module->update(['order' => $tempOrder]);
 
@@ -344,48 +339,46 @@ class CourseWithContentController extends Controller
                         ]);
                         $existingModuleIds[] = $module->id;
                     } else {
-                        // Store new modules to create after handling existing ones
                         $modulesToCreate[] = $moduleData;
                     }
                 }
 
-                // Delete modules not in the update first
+                // Delete modules not in update
                 if (! empty($existingModuleIds)) {
-                    $deletedModules = $course->modules()
-                        ->whereNotIn('id', $existingModuleIds)
-                        ->get();
+                    $deletedModules = $course->modules()->whereNotIn('id', $existingModuleIds)->get();
 
                     foreach ($deletedModules as $deletedModule) {
-                        foreach ($deletedModule->lessons as $lessonToDelete) {
-                            foreach ($lessonToDelete->activities as $activityToDelete) {
-                                if ($activityToDelete->codingActivityProblem) {
-                                    $activityToDelete->codingActivityProblem->delete();
-                                }
-                                $activityToDelete->quizQuestions()->delete();
-                                $activityToDelete->delete();
+                        // Delete lessons and activities
+                        foreach ($deletedModule->lessons as $lesson) {
+                            $lesson->delete();
+                        }
+                        foreach ($deletedModule->activities as $activity) {
+                            if ($activity->codingActivityProblem) {
+                                $activity->codingActivityProblem->delete();
                             }
-                            $lessonToDelete->delete();
+                            $activity->quizQuestions()->delete();
+                            $activity->delete();
                         }
                         $deletedModule->delete();
                     }
                 } else {
-                    // Delete all modules if none will remain
-                    foreach ($course->modules as $moduleToDelete) {
-                        foreach ($moduleToDelete->lessons as $lessonToDelete) {
-                            foreach ($lessonToDelete->activities as $activityToDelete) {
-                                if ($activityToDelete->codingActivityProblem) {
-                                    $activityToDelete->codingActivityProblem->delete();
-                                }
-                                $activityToDelete->quizQuestions()->delete();
-                                $activityToDelete->delete();
-                            }
-                            $lessonToDelete->delete();
+                    // Delete all modules
+                    foreach ($course->modules as $module) {
+                        foreach ($module->lessons as $lesson) {
+                            $lesson->delete();
                         }
-                        $moduleToDelete->delete();
+                        foreach ($module->activities as $activity) {
+                            if ($activity->codingActivityProblem) {
+                                $activity->codingActivityProblem->delete();
+                            }
+                            $activity->quizQuestions()->delete();
+                            $activity->delete();
+                        }
+                        $module->delete();
                     }
                 }
 
-                // Now set the correct orders for existing modules
+                // Set correct orders for existing modules
                 foreach ($validated['modules'] as $moduleData) {
                     if (isset($moduleData['id'])) {
                         $module = $course->modules()->findOrFail($moduleData['id']);
@@ -403,7 +396,7 @@ class CourseWithContentController extends Controller
                     ]);
                     $existingModuleIds[] = $module->id;
 
-                    // Add this module back to the validated array for processing lessons
+                    // Mark for lesson/activity processing
                     foreach ($validated['modules'] as &$validatedModule) {
                         if (! isset($validatedModule['id']) &&
                             $validatedModule['title'] === $moduleData['title'] &&
@@ -414,284 +407,19 @@ class CourseWithContentController extends Controller
                     }
                 }
 
-                // Second pass: Handle lessons and activities
+                // Handle lessons and activities for each module
                 foreach ($validated['modules'] as $moduleData) {
-                    // Get the module instance
+                    // Get module instance
                     if (isset($moduleData['id'])) {
                         $module = $course->modules()->findOrFail($moduleData['id']);
                     } elseif (isset($moduleData['created_module'])) {
                         $module = $moduleData['created_module'];
                     } else {
-                        continue; // Skip if we can't find the module
+                        continue;
                     }
 
-                    if (isset($moduleData['lessons'])) {
-                        $existingLessonIdsForModule = [];
-                        $lessonsToCreate            = [];
-
-                        // First pass: Update existing lessons with temporary orders
-                        foreach ($moduleData['lessons'] as $index => $lessonData) {
-                            if (isset($lessonData['id'])) {
-                                $lesson = $module->lessons()->findOrFail($lessonData['id']);
-
-                                // Temporarily set a high order to avoid conflicts
-                                $tempOrder = 9999 + $index;
-                                $lesson->update(['order' => $tempOrder]);
-
-                                $lesson->update([
-                                    'title'              => $lessonData['title'],
-                                    'content'            => $lessonData['content'] ?? null,
-                                    'exp_reward'         => $lessonData['exp_reward'] ?? 0,
-                                    'estimated_duration' => $lessonData['estimated_duration'] ?? 0,
-                                    'slug'               => $lesson->title !== $lessonData['title']
-                                    ? $this->generateTypeSlug($lessonData['title'], $module, 'lessons')
-                                    : $lesson->slug,
-                                ]);
-                                $existingLessonIds[]          = $lesson->id;
-                                $existingLessonIdsForModule[] = $lesson->id;
-                            } else {
-                                $lessonsToCreate[] = $lessonData;
-                            }
-                        }
-
-                        // Delete lessons not in the update for this module
-                        if (! empty($existingLessonIdsForModule)) {
-                            $deletedLessons = $module->lessons()
-                                ->whereNotIn('id', $existingLessonIdsForModule)
-                                ->get();
-
-                            foreach ($deletedLessons as $deletedLesson) {
-                                foreach ($deletedLesson->activities as $activityToDelete) {
-                                    if ($activityToDelete->codingActivityProblem) {
-                                        $activityToDelete->codingActivityProblem->delete();
-                                    }
-                                    $activityToDelete->quizQuestions()->delete();
-                                    $activityToDelete->delete();
-                                }
-                                $deletedLesson->delete();
-                            }
-                        } else {
-                            // Delete all lessons if none provided
-                            foreach ($module->lessons as $lessonToDelete) {
-                                foreach ($lessonToDelete->activities as $activityToDelete) {
-                                    if ($activityToDelete->codingActivityProblem) {
-                                        $activityToDelete->codingActivityProblem->delete();
-                                    }
-                                    $activityToDelete->quizQuestions()->delete();
-                                    $activityToDelete->delete();
-                                }
-                                $lessonToDelete->delete();
-                            }
-                        }
-
-                        // Set correct orders for existing lessons
-                        foreach ($moduleData['lessons'] as $lessonData) {
-                            if (isset($lessonData['id'])) {
-                                $lesson = $module->lessons()->findOrFail($lessonData['id']);
-                                $lesson->update(['order' => $lessonData['order']]);
-                            }
-                        }
-
-                        // Create new lessons
-                        foreach ($lessonsToCreate as $lessonData) {
-                            $lesson = $module->lessons()->create([
-                                'title'              => $lessonData['title'],
-                                'content'            => $lessonData['content'] ?? null,
-                                'exp_reward'         => $lessonData['exp_reward'] ?? 0,
-                                'estimated_duration' => $lessonData['estimated_duration'] ?? 0,
-                                'order'              => $lessonData['order'],
-                                'slug'               => $this->generateTypeSlug($lessonData['title'], $module, 'lessons'),
-                            ]);
-                            $existingLessonIds[]          = $lesson->id;
-                            $existingLessonIdsForModule[] = $lesson->id;
-
-                            // Add this lesson back to the module data for processing activities
-                            foreach ($moduleData['lessons'] as &$validatedLesson) {
-                                if (! isset($validatedLesson['id']) &&
-                                    $validatedLesson['title'] === $lessonData['title'] &&
-                                    $validatedLesson['order'] === $lessonData['order']) {
-                                    $validatedLesson['created_lesson'] = $lesson;
-                                    break;
-                                }
-                            }
-                        }
-
-                        // Third pass: Handle activities for each lesson
-                        foreach ($moduleData['lessons'] as $lessonData) {
-                            // Get the lesson instance
-                            if (isset($lessonData['id'])) {
-                                $lesson = $module->lessons()->findOrFail($lessonData['id']);
-                            } elseif (isset($lessonData['created_lesson'])) {
-                                $lesson = $lessonData['created_lesson'];
-                            } else {
-                                continue; // Skip if we can't find the lesson
-                            }
-
-                            if (isset($lessonData['activities'])) {
-                                $existingActivityIdsForLesson = [];
-                                $activitiesToCreate           = [];
-
-                                // First pass: Update existing activities with temporary orders
-                                foreach ($lessonData['activities'] as $index => $activityData) {
-                                    if (isset($activityData['id'])) {
-                                        $activity = $lesson->activities()->findOrFail($activityData['id']);
-
-                                        // Temporarily set a high order to avoid conflicts
-                                        $tempOrder = 9999 + $index;
-                                        $activity->update(['order' => $tempOrder]);
-
-                                        $activity->update([
-                                            'title'       => $activityData['title'],
-                                            'description' => $activityData['description'] ?? null,
-                                            'type'        => $activityData['type'],
-                                            'exp_reward'  => $activityData['exp_reward'] ?? 0,
-                                            'is_required' => $activityData['is_required'] ?? true,
-                                        ]);
-                                        $existingActivityIds[]          = $activity->id;
-                                        $existingActivityIdsForLesson[] = $activity->id;
-                                    } else {
-                                        $activitiesToCreate[] = $activityData;
-                                    }
-                                }
-
-                                // Delete activities not in the update for this lesson
-                                if (! empty($existingActivityIdsForLesson)) {
-                                    $deletedActivities = $lesson->activities()
-                                        ->whereNotIn('id', $existingActivityIdsForLesson)
-                                        ->get();
-
-                                    foreach ($deletedActivities as $deletedActivity) {
-                                        if ($deletedActivity->codingActivityProblem) {
-                                            $deletedActivity->codingActivityProblem->delete();
-                                        }
-                                        $deletedActivity->quizQuestions()->delete();
-                                        $deletedActivity->delete();
-                                    }
-                                } else {
-                                    // Delete all activities if none provided
-                                    foreach ($lesson->activities as $activityToDelete) {
-                                        if ($activityToDelete->codingActivityProblem) {
-                                            $activityToDelete->codingActivityProblem->delete();
-                                        }
-                                        $activityToDelete->quizQuestions()->delete();
-                                        $activityToDelete->delete();
-                                    }
-                                }
-
-                                // Set correct orders for existing activities
-                                foreach ($lessonData['activities'] as $activityData) {
-                                    if (isset($activityData['id'])) {
-                                        $activity = $lesson->activities()->findOrFail($activityData['id']);
-                                        $activity->update(['order' => $activityData['order']]);
-                                    }
-                                }
-
-                                // Create new activities
-                                foreach ($activitiesToCreate as $activityData) {
-                                    $activity = $lesson->activities()->create([
-                                        'title'       => $activityData['title'],
-                                        'description' => $activityData['description'] ?? null,
-                                        'type'        => $activityData['type'],
-                                        'exp_reward'  => $activityData['exp_reward'] ?? 0,
-                                        'order'       => $activityData['order'],
-                                        'is_required' => $activityData['is_required'] ?? true,
-                                    ]);
-                                    $existingActivityIds[]          = $activity->id;
-                                    $existingActivityIdsForLesson[] = $activity->id;
-
-                                    // Add this activity back to the lesson data
-                                    foreach ($lessonData['activities'] as &$validatedActivity) {
-                                        if (! isset($validatedActivity['id']) &&
-                                            $validatedActivity['title'] === $activityData['title'] &&
-                                            $validatedActivity['order'] === $activityData['order']) {
-                                            $validatedActivity['created_activity'] = $activity;
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                // Fourth pass: Handle activity content (coding problems and quiz questions)
-                                foreach ($lessonData['activities'] as $activityData) {
-                                    // Get the activity instance
-                                    if (isset($activityData['id'])) {
-                                        $activity = $lesson->activities()->findOrFail($activityData['id']);
-                                    } elseif (isset($activityData['created_activity'])) {
-                                        $activity = $activityData['created_activity'];
-                                    } else {
-                                        continue; // Skip if we can't find the activity
-                                    }
-
-                                    // Handle coding activities
-                                    if ($activityData['type'] === 'code' && isset($activityData['problem'])) {
-                                        $testCasesJson = json_encode($activityData['problem']['test_cases']);
-
-                                        if ($activity->codingActivityProblem) {
-                                            // Update existing coding problem
-                                            $activity->codingActivityProblem->update([
-                                                'problem_statement' => $activityData['problem']['problem_statement'],
-                                                'starter_code'      => $activityData['problem']['starter_code'] ?? '',
-                                                'test_cases'        => $testCasesJson,
-                                            ]);
-                                        } else {
-                                            // Create new coding problem
-                                            $codingProblem = CodingActivityProblem::create([
-                                                'problem_statement' => $activityData['problem']['problem_statement'],
-                                                'starter_code'      => $activityData['problem']['starter_code'] ?? '',
-                                                'test_cases'        => $testCasesJson,
-                                            ]);
-                                            $activity->update(['coding_activity_problem_id' => $codingProblem->id]);
-                                        }
-                                    }
-
-                                    // Handle quiz activities
-                                    if ($activityData['type'] === 'quiz' && isset($activityData['questions'])) {
-                                        $existingQuestionIdsForActivity = [];
-
-                                        foreach ($activityData['questions'] as $questionData) {
-                                            if (isset($questionData['id'])) {
-                                                // Update existing question
-                                                $question = QuizQuestion::findOrFail($questionData['id']);
-                                                $question->update([
-                                                    'question'       => $questionData['question'],
-                                                    'type'           => $questionData['type'],
-                                                    'options'        => json_encode($questionData['options'] ?? []),
-                                                    'correct_answer' => json_encode($questionData['correct_answer']),
-                                                    'explanation'    => $questionData['explanation'] ?? null,
-                                                    'points'         => $questionData['points'] ?? 1,
-                                                    'order'          => $questionData['order'],
-                                                ]);
-                                                $existingQuestionIds[]            = $question->id;
-                                                $existingQuestionIdsForActivity[] = $question->id;
-                                            } else {
-                                                // Create new question
-                                                $question = QuizQuestion::create([
-                                                    'activity_id'    => $activity->id,
-                                                    'question'       => $questionData['question'],
-                                                    'type'           => $questionData['type'],
-                                                    'options'        => json_encode($questionData['options'] ?? []),
-                                                    'correct_answer' => json_encode($questionData['correct_answer']),
-                                                    'explanation'    => $questionData['explanation'] ?? null,
-                                                    'points'         => $questionData['points'] ?? 1,
-                                                    'order'          => $questionData['order'],
-                                                ]);
-                                                $existingQuestionIds[]            = $question->id;
-                                                $existingQuestionIdsForActivity[] = $question->id;
-                                            }
-                                        }
-
-                                        // Delete questions not in the update for this activity
-                                        if (! empty($existingQuestionIdsForActivity)) {
-                                            $activity->quizQuestions()
-                                                ->whereNotIn('id', $existingQuestionIdsForActivity)
-                                                ->delete();
-                                        } else {
-                                            $activity->quizQuestions()->delete();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    $this->handleModuleLessons($module, $moduleData['lessons'] ?? [], $existingLessonIds);
+                    $this->handleModuleActivities($module, $moduleData['activities'] ?? [], $existingActivityIds, $existingQuestionIds);
                 }
             }
 
@@ -699,8 +427,8 @@ class CourseWithContentController extends Controller
 
             $course->load([
                 'difficulty', 'category', 'skillTags', 'programmingLanguage',
-                'modules.lessons.activities.codingActivityProblem',
-                'modules.lessons.activities.quizQuestions',
+                'modules.lessons', 'modules.activities.codingActivityProblem',
+                'modules.activities.quizQuestions',
             ]);
 
             return (new CourseResource($course))->additional([
@@ -711,7 +439,6 @@ class CourseWithContentController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
-            // Clean up newly uploaded thumbnail if course update failed
             if ($request->hasFile('thumbnail') && $thumbnailPath && $thumbnailPath !== $oldThumbnailPath) {
                 Storage::disk('public')->delete($thumbnailPath);
             }
@@ -721,6 +448,191 @@ class CourseWithContentController extends Controller
                 'message' => 'Failed to update course.',
                 'error'   => $e->getMessage(),
             ], 500);
+        }
+    }
+
+    private function handleModuleLessons($module, $lessonsData, &$existingLessonIds)
+    {
+        $existingLessonIdsForModule = [];
+        $lessonsToCreate            = [];
+
+        foreach ($lessonsData as $index => $lessonData) {
+            if (isset($lessonData['id'])) {
+                $lesson = $module->lessons()->findOrFail($lessonData['id']);
+
+                $lesson->update([
+                    'title'              => $lessonData['title'],
+                    'content'            => $lessonData['content'] ?? null,
+                    'exp_reward'         => $lessonData['exp_reward'] ?? 0,
+                    'estimated_duration' => $lessonData['estimated_duration'] ?? 0,
+                    'order'              => $lessonData['order'],
+                    'slug'               => $lesson->title !== $lessonData['title']
+                    ? $this->generateTypeSlug($lessonData['title'], $module, 'lessons')
+                    : $lesson->slug,
+                ]);
+                $existingLessonIds[]          = $lesson->id;
+                $existingLessonIdsForModule[] = $lesson->id;
+            } else {
+                $lessonsToCreate[] = $lessonData;
+            }
+        }
+
+        if (! empty($existingLessonIdsForModule)) {
+            $module->lessons()->whereNotIn('id', $existingLessonIdsForModule)->delete();
+        } else {
+            $module->lessons()->delete();
+        }
+
+        // Create new lessons
+        foreach ($lessonsToCreate as $lessonData) {
+            $lesson = $module->lessons()->create([
+                'title'              => $lessonData['title'],
+                'content'            => $lessonData['content'] ?? null,
+                'exp_reward'         => $lessonData['exp_reward'] ?? 0,
+                'estimated_duration' => $lessonData['estimated_duration'] ?? 0,
+                'order'              => $lessonData['order'],
+                'slug'               => $this->generateTypeSlug($lessonData['title'], $module, 'lessons'),
+            ]);
+            $existingLessonIds[] = $lesson->id;
+        }
+    }
+
+    private function handleModuleActivities($module, $activitiesData, &$existingActivityIds, &$existingQuestionIds)
+    {
+        $existingActivityIdsForModule = [];
+        $activitiesToCreate           = [];
+
+        // Update existing activities with temporary orders
+        foreach ($activitiesData as $index => $activityData) {
+            if (isset($activityData['id'])) {
+                $activity = $module->activities()->findOrFail($activityData['id']);
+
+                $activity->update([
+                    'title'       => $activityData['title'],
+                    'description' => $activityData['description'] ?? null,
+                    'type'        => $activityData['type'],
+                    'exp_reward'  => $activityData['exp_reward'] ?? 0,
+                    'is_required' => $activityData['is_required'] ?? true,
+                    'order'       => $activityData['order'],
+                ]);
+                $existingActivityIds[]          = $activity->id;
+                $existingActivityIdsForModule[] = $activity->id;
+            } else {
+                $activitiesToCreate[] = $activityData;
+            }
+        }
+
+        // Delete activities not in update
+        if (! empty($existingActivityIdsForModule)) {
+            $deletedActivities = $module->activities()->whereNotIn('id', $existingActivityIdsForModule)->get();
+            foreach ($deletedActivities as $activity) {
+                if ($activity->codingActivityProblem) {
+                    $activity->codingActivityProblem->delete();
+                }
+                $activity->quizQuestions()->delete();
+                $activity->delete();
+            }
+        } else {
+            foreach ($module->activities as $activity) {
+                if ($activity->codingActivityProblem) {
+                    $activity->codingActivityProblem->delete();
+                }
+                $activity->quizQuestions()->delete();
+                $activity->delete();
+            }
+        }
+
+        // Create new activities
+        foreach ($activitiesToCreate as $activityData) {
+            $activity = $module->activities()->create([
+                'title'       => $activityData['title'],
+                'description' => $activityData['description'] ?? null,
+                'type'        => $activityData['type'],
+                'exp_reward'  => $activityData['exp_reward'] ?? 0,
+                'order'       => $activityData['order'],
+                'is_required' => $activityData['is_required'] ?? true,
+            ]);
+            $existingActivityIds[]          = $activity->id;
+            $existingActivityIdsForModule[] = $activity->id;
+
+            // Add back to activities data for content processing
+            foreach ($activitiesData as &$validatedActivity) {
+                if (! isset($validatedActivity['id']) &&
+                    $validatedActivity['title'] === $activityData['title'] &&
+                    $validatedActivity['order'] === $activityData['order']) {
+                    $validatedActivity['created_activity'] = $activity;
+                    break;
+                }
+            }
+        }
+
+        foreach ($activitiesData as $activityData) {
+            if (isset($activityData['id'])) {
+                $activity = $module->activities()->findOrFail($activityData['id']);
+            } elseif (isset($activityData['created_activity'])) {
+                $activity = $activityData['created_activity'];
+            } else {
+                continue;
+            }
+
+            if ($activityData['type'] === 'code' && isset($activityData['problem'])) {
+                $testCasesJson = json_encode($activityData['problem']['test_cases']);
+
+                if ($activity->codingActivityProblem) {
+                    $activity->codingActivityProblem->update([
+                        'problem_statement' => $activityData['problem']['problem_statement'],
+                        'starter_code'      => $activityData['problem']['starter_code'] ?? '',
+                        'test_cases'        => $testCasesJson,
+                    ]);
+                } else {
+                    $codingProblem = CodingActivityProblem::create([
+                        'problem_statement' => $activityData['problem']['problem_statement'],
+                        'starter_code'      => $activityData['problem']['starter_code'] ?? '',
+                        'test_cases'        => $testCasesJson,
+                    ]);
+                    $activity->update(['coding_activity_problem_id' => $codingProblem->id]);
+                }
+            }
+
+            if ($activityData['type'] === 'quiz' && isset($activityData['questions'])) {
+                $existingQuestionIdsForActivity = [];
+
+                foreach ($activityData['questions'] as $questionData) {
+                    if (isset($questionData['id'])) {
+                        $question = QuizQuestion::findOrFail($questionData['id']);
+                        $question->update([
+                            'question'       => $questionData['question'],
+                            'type'           => $questionData['type'],
+                            'options'        => json_encode($questionData['options'] ?? []),
+                            'correct_answer' => json_encode($questionData['correct_answer']),
+                            'explanation'    => $questionData['explanation'] ?? null,
+                            'points'         => $questionData['points'] ?? 1,
+                            'order'          => $questionData['order'],
+                        ]);
+                        $existingQuestionIds[]            = $question->id;
+                        $existingQuestionIdsForActivity[] = $question->id;
+                    } else {
+                        $question = QuizQuestion::create([
+                            'activity_id'    => $activity->id,
+                            'question'       => $questionData['question'],
+                            'type'           => $questionData['type'],
+                            'options'        => json_encode($questionData['options'] ?? []),
+                            'correct_answer' => json_encode($questionData['correct_answer']),
+                            'explanation'    => $questionData['explanation'] ?? null,
+                            'points'         => $questionData['points'] ?? 1,
+                            'order'          => $questionData['order'],
+                        ]);
+                        $existingQuestionIds[]            = $question->id;
+                        $existingQuestionIdsForActivity[] = $question->id;
+                    }
+                }
+
+                if (! empty($existingQuestionIdsForActivity)) {
+                    $activity->quizQuestions()->whereNotIn('id', $existingQuestionIdsForActivity)->delete();
+                } else {
+                    $activity->quizQuestions()->delete();
+                }
+            }
         }
     }
 
