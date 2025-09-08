@@ -18,7 +18,6 @@ class LessonResource extends JsonResource
             'title'              => $this->title,
             'slug'               => $this->slug,
             'content'            => $this->content,
-            'video_url'          => $this->video_url,
             'exp_reward'         => $this->exp_reward,
             'estimated_duration' => $this->estimated_duration,
             'order'              => $this->order,
@@ -29,7 +28,6 @@ class LessonResource extends JsonResource
             // Relationships
             'module'             => new CourseModuleResource($this->whenLoaded('module')),
             'course'             => new CourseResource($this->whenLoaded('course')),
-            'activities'         => ActivityResource::collection($this->whenLoaded('activities')),
             'prerequisites'      => LessonResource::collection($this->whenLoaded('prerequisites')),
             'progress'           => new UserLessonProgressResource($this->whenLoaded('userProgress')),
 
