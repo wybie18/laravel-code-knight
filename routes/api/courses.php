@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('courses', CourseController::class)->except(['index', 'show']);
+    Route::get('courses/{course}', [CourseController::class, 'show']);
     Route::post('courses/store/content', [CourseWithContentController::class, 'storeWithContent']);
     Route::put('/courses/{course}/content', [CourseWithContentController::class, 'updateWithContent']);
 
@@ -41,6 +42,5 @@ Route::middleware(['auth:sanctum'])->group(function () {
 Route::get('course-categories/all', [CourseCategoryController::class, 'getAllCourseCategories']);
 Route::get('skill-tags/all', [SkillTagController::class, 'getAllSkillTags']);
 Route::get('courses', [CourseController::class, 'index']);
-Route::get('courses/{course}', [CourseController::class, 'show']);
 Route::get('courses/{course}/modules', [CourseModuleController::class, 'index']);
 Route::get('courses/{course}/modules/{module}', [CourseModuleController::class, 'show']);
