@@ -12,6 +12,7 @@ class Course extends Model
         'description',
         'short_description',
         'objectives',
+        'requirements',
         'thumbnail',
         'difficulty_id',
         'category_id',
