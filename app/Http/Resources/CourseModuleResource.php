@@ -20,13 +20,13 @@ class CourseModuleResource extends JsonResource
             'description'    => $this->description,
             'order'          => $this->order,
             'exp_reward'     => $this->exp_reward,
-            'is_published'   => $this->is_published,
             'created_at'     => $this->created_at,
             'updated_at'     => $this->updated_at,
 
             // Relationships
             'course'         => new CourseResource($this->whenLoaded('course')),
             'lessons'        => LessonResource::collection($this->whenLoaded('lessons')),
+            'activities'     => ActivityResource::collection($this->whenLoaded('activities')),
 
             // Computed fields
             'lessons_count'  => $this->when($this->lessons_count !== null, $this->lessons_count),
