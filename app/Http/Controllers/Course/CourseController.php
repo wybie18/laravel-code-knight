@@ -62,10 +62,10 @@ class CourseController extends Controller
         if (Auth::check()) {
             $userId = Auth::id();
             $query->with([
-                'userEnrollment' => function ($q) use ($userId) {
+                'enrollments'  => function ($q) use ($userId) {
                     $q->where('user_id', $userId);
                 },
-                'userProgress'   => function ($q) use ($userId) {
+                'userProgress' => function ($q) use ($userId) {
                     $q->where('user_id', $userId);
                 },
             ]);
@@ -88,6 +88,7 @@ class CourseController extends Controller
             'description'             => 'required|string',
             'short_description'       => 'required|string|max:500',
             'objectives'              => 'required|string',
+            'requirements'            => 'nullable|string',
             'difficulty_id'           => 'required|exists:difficulties,id',
             'category_id'             => 'required|exists:course_categories,id',
             'exp_reward'              => 'nullable|integer|min:0',
@@ -120,19 +121,19 @@ class CourseController extends Controller
      */
     public function show(Course $course)
     {
-        $course->load(['difficulty', 'category', 'modules.lessons.activities', 'skillTags', 'programmingLanguage']);
+        $course->load(['difficulty', 'category', 'modules.lessons', 'modules.activities', 'skillTags', 'programmingLanguage']);
 
-        if (Auth::check()) {
-            $userId = Auth::id();
-            $course->load([
-                'userEnrollment' => function ($q) use ($userId) {
-                    $q->where('user_id', $userId);
-                },
-                'userProgress'   => function ($q) use ($userId) {
-                    $q->where('user_id', $userId);
-                },
-            ]);
-        }
+        // if (Auth::check()) {
+        //     $userId = Auth::id();
+        //     $course->load([
+        //         'userEnrollment' => function ($q) use ($userId) {
+        //             $q->where('user_id', $userId);
+        //         },
+        //         'userProgress'   => function ($q) use ($userId) {
+        //             $q->where('user_id', $userId);
+        //         },
+        //     ]);
+        // }
 
         return (new CourseResource($course))
             ->additional([
@@ -155,6 +156,7 @@ class CourseController extends Controller
             'description'             => 'required|string',
             'short_description'       => 'required|string|max:500',
             'objectives'              => 'required|string',
+            'requirements'            => 'nullable|string',
             'difficulty_id'           => 'sometimes|exists:difficulties,id',
             'category_id'             => 'sometimes|exists:course_categories,id',
             'exp_reward'              => 'required|integer|min:0',
