@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -67,6 +66,16 @@ class User extends Authenticatable
         return $this->hasMany(UserCourseProgress::class);
     }
 
+    public function moduleProgress()
+    {
+        return $this->hasMany(UserModuleProgress::class);
+    }
+
+    public function activityProgress()
+    {
+        return $this->hasMany(UserActivityProgress::class);
+    }
+
     public function lessonProgress()
     {
         return $this->hasMany(UserLessonProgress::class);
@@ -101,7 +110,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'password'          => 'hashed',
         ];
     }
 }
