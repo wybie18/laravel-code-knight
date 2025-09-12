@@ -41,14 +41,4 @@ class Lesson extends Model
     {
         return $this->hasOne(UserLessonProgress::class)->where('user_id', Auth::id());
     }
-
-    public function prerequisites()
-    {
-        return $this->belongsToMany(Lesson::class, 'lesson_prerequisites', 'lesson_id', 'prerequisite_lesson_id');
-    }
-
-    public function dependentLessons()
-    {
-        return $this->belongsToMany(Lesson::class, 'lesson_prerequisites', 'prerequisite_lesson_id', 'lesson_id');
-    }
 }
