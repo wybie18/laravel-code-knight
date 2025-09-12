@@ -34,16 +34,9 @@ class LessonController extends Controller
 
         $query = $module->lessons()->orderBy('order');
 
-        $query->with(['activities', 'prerequisites'])
-            ->withCount(['activities']);
-
         if (Auth::check()) {
             $userId = Auth::id();
-            $query->with([
-                'userProgress' => function ($q) use ($userId) {
-                    $q->where('user_id', $userId);
-                },
-            ]);
+            $query->with(['currentUserProgress']);
         }
 
         $lessons = $query->paginate(10);
@@ -76,16 +69,6 @@ class LessonController extends Controller
             'exp_reward'                => 'nullable|integer|min:0',
             'estimated_duration'        => 'nullable|integer|min:0',
             'order'                     => 'sometimes|integer|min:1',
-            'prerequisite_lesson_ids'   => 'sometimes|array',
-            'prerequisite_lesson_ids.*' => [
-                'exists:lessons,id',
-                function ($attribute, $value, $fail) use ($course) {
-                    $lesson = Lesson::find($value);
-                    if ($lesson && $lesson->module->course_id !== $course->id) {
-                        $fail('Prerequisite lesson must be from the same course.');
-                    }
-                },
-            ],
         ]);
 
         $validated['slug'] = $this->generateUniqueSlug($validated['title'], $module);
@@ -98,11 +81,7 @@ class LessonController extends Controller
 
         $lesson = $module->lessons()->create($validated);
 
-        if ($request->has('prerequisite_lesson_ids')) {
-            $lesson->prerequisites()->attach($request->input('prerequisite_lesson_ids'));
-        }
-
-        $lesson->load(['module', 'activities', 'prerequisites']);
+        $lesson->load(['module']);
 
         return (new LessonResource($lesson))->additional([
             'success' => true,
@@ -160,21 +139,6 @@ class LessonController extends Controller
             'exp_reward'                => 'nullable|integer|min:0',
             'estimated_duration'        => 'nullable|integer|min:0',
             'order'                     => 'sometimes|integer|min:1',
-            'prerequisite_lesson_ids'   => 'sometimes|array',
-            'prerequisite_lesson_ids.*' => [
-                'exists:lessons,id',
-                function ($attribute, $value, $fail) use ($course, $lesson) {
-                    if ($value == $lesson->id) {
-                        $fail('A lesson cannot be a prerequisite of itself.');
-                        return;
-                    }
-
-                    $prerequisiteLesson = Lesson::find($value);
-                    if ($prerequisiteLesson && $prerequisiteLesson->module->course_id !== $course->id) {
-                        $fail('Prerequisite lesson must be from the same course.');
-                    }
-                },
-            ],
         ]);
 
         if ($request->has('title')) {
@@ -187,11 +151,7 @@ class LessonController extends Controller
 
         $lesson->update($validated);
 
-        if ($request->has('prerequisite_lesson_ids')) {
-            $lesson->prerequisites()->sync($request->input('prerequisite_lesson_ids'));
-        }
-
-        $lesson->load(['module', 'activities', 'prerequisites']);
+        $lesson->load(['module']);
 
         return (new LessonResource($lesson))->additional([
             'success' => true,
@@ -211,43 +171,11 @@ class LessonController extends Controller
             ], 404);
         }
 
-        $dependentLessons = $lesson->dependentLessons()->count();
-
-        if ($dependentLessons > 0) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot delete lesson that is a prerequisite for other lessons. Please remove dependencies first.',
-            ], 422);
-        }
-
         $lesson->delete();
 
         $this->reorderLessonsAfterDeletion($module);
 
         return response()->json(null, 204);
-    }
-
-    /**
-     * Check if user can access a lesson based on prerequisites
-     */
-    private function canUserAccessLesson(int $userId, Lesson $lesson): bool
-    {
-        // If lesson has no prerequisites, it's accessible
-        $prerequisites = $lesson->prerequisites;
-
-        if ($prerequisites->isEmpty()) {
-            return true;
-        }
-
-        // Check if all prerequisites are completed
-        $completedPrerequisites = $lesson->prerequisites()
-            ->whereHas('userProgress', function ($query) use ($userId) {
-                $query->where('user_id', $userId)
-                    ->whereNotNull('completed_at');
-            })
-            ->count();
-
-        return $completedPrerequisites === $prerequisites->count();
     }
 
     /**
