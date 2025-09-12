@@ -6,6 +6,7 @@ use App\Http\Resources\LessonResource;
 use App\Models\Course;
 use App\Models\CourseModule;
 use App\Models\Lesson;
+use App\Services\CourseProgressService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -13,6 +14,12 @@ use Illuminate\Validation\Rule;
 
 class LessonController extends Controller
 {
+    private CourseProgressService $progressService;
+
+    public function __construct(CourseProgressService $progressService)
+    {
+        $this->progressService = $progressService;
+    }
     /**
      * Display a listing of the resource.
      */
@@ -112,27 +119,17 @@ class LessonController extends Controller
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
-        if ($lesson->module_id !== $module->id || $module->course_id !== $course->id) {
+        if ($lesson->course_module_id !== $module->id || $module->course_id !== $course->id) {
             return response()->json([
                 'success' => false,
                 'message' => 'Lesson not found in this module.',
             ], 404);
         }
-        $lesson->load([
-            'module.course',
-            'activities',
-            'prerequisites',
-        ]);
 
         if (Auth::check()) {
-            $userId = Auth::id();
-            $lesson->load([
-                'userProgress' => function ($q) use ($userId) {
-                    $q->where('user_id', $userId);
-                },
-            ]);
-            $lesson->is_accessible = $this->canUserAccessLesson($userId, $lesson);
+            $lesson->load(['currentUserProgress']);
         }
+
         return (new LessonResource($lesson))->additional([
             'success' => true,
         ]);
@@ -304,5 +301,16 @@ class LessonController extends Controller
         }
 
         return $slug;
+    }
+
+    public function markCompleted(Lesson $lesson)
+    {
+        $this->progressService->markLessonCompleted(Auth::user(), $lesson);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Lesson marked as completed!',
+            'redirect_url' => $this->progressService->getNextContentUrl(Auth::user(), $lesson)
+        ]);
     }
 }
