@@ -1,8 +1,8 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 class Course extends Model
 {
@@ -53,6 +53,11 @@ class Course extends Model
         return $this->hasMany(CourseEnrollment::class);
     }
 
+    public function userEnrollment()
+    {
+        return $this->hasOne(CourseEnrollment::class)->where('user_id', Auth::id());
+    }
+
     public function skillTags()
     {
         return $this->belongsToMany(SkillTag::class, 'course_skill_tag');
@@ -63,7 +68,13 @@ class Course extends Model
         return $this->hasMany(UserCourseProgress::class);
     }
 
-    public function programmingLanguage(){
+    public function currentUserProgress()
+    {
+        return $this->hasOne(UserCourseProgress::class)->where('user_id', Auth::id());
+    }
+
+    public function programmingLanguage()
+    {
         return $this->belongsTo(ProgrammingLanguage::class);
     }
 }
