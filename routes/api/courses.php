@@ -10,8 +10,7 @@ use App\Http\Controllers\SkillTagController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum'])->group(function () {
-    Route::apiResource('courses', CourseController::class)->except(['index', 'show']);
-    Route::get('courses/{course}', [CourseController::class, 'show']);
+    Route::apiResource('courses', CourseController::class)->except(['index']);
     Route::post('courses/store/content', [CourseWithContentController::class, 'storeWithContent']);
     Route::put('/courses/{course}/content', [CourseWithContentController::class, 'updateWithContent']);
 
@@ -37,7 +36,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('courses/{course}/modules/{module}/lessons/{lesson}', [LessonController::class, 'show'])
         ->name('courses.modules.lessons.show');
     
-    Route::apiResource('courses.modules.lessons.activities', ActivityController::class);
+    Route::apiResource('courses.modules.activities', ActivityController::class);
 });
 Route::get('course-categories/all', [CourseCategoryController::class, 'getAllCourseCategories']);
 Route::get('skill-tags/all', [SkillTagController::class, 'getAllSkillTags']);
