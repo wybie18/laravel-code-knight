@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Course;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CourseResource;
 use App\Models\Course;
+use App\Services\ContentOrderingService;
+use App\Services\CourseProgressService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +15,16 @@ use Illuminate\Validation\Rule;
 
 class CourseController extends Controller
 {
+    private CourseProgressService $progressService;
+    private ContentOrderingService $contentOrderingService;
+
+    public function __construct(
+        CourseProgressService $progressService,
+        ContentOrderingService $contentOrderingService
+    ) {
+        $this->progressService        = $progressService;
+        $this->contentOrderingService = $contentOrderingService;
+    }
     /**
      * Display a listing of the resource.
      */
@@ -121,24 +133,33 @@ class CourseController extends Controller
      */
     public function show(Course $course)
     {
-        $course->load(['difficulty', 'category', 'modules.lessons', 'modules.activities', 'skillTags', 'programmingLanguage']);
+        $course->load(['difficulty', 'category', 'skillTags', 'programmingLanguage']);
 
-        // if (Auth::check()) {
-        //     $userId = Auth::id();
-        //     $course->load([
-        //         'userEnrollment' => function ($q) use ($userId) {
-        //             $q->where('user_id', $userId);
-        //         },
-        //         'userProgress'   => function ($q) use ($userId) {
-        //             $q->where('user_id', $userId);
-        //         },
-        //     ]);
-        // }
+        $additionalData = ['success' => true];
 
-        return (new CourseResource($course))
-            ->additional([
-                'success' => true,
-            ]);
+        if (Auth::check()) {
+            $user = request()->user();
+
+            if ($user->tokenCan('admin:*')) {
+                $course->load(['modules.lessons', 'modules.activities']);
+            }
+
+            if ($user->tokenCan('courses:view')) {
+                $course->load(['userEnrollment', 'currentUserProgress']);
+                $statistics           = $this->progressService->getCourseStatistics($user, $course);
+                $currentActiveContent = $this->progressService->getCurrentActiveContent($user, $course);
+
+                $contentByModules = $this->contentOrderingService->getContentByModules($course);
+
+                $additionalData = array_merge($additionalData, [
+                    'statistics'             => $statistics,
+                    'current_active_content' => $currentActiveContent,
+                    'content_by_modules'     => $contentByModules,
+                ]);
+            }
+        }
+
+        return (new CourseResource($course))->additional($additionalData);
     }
 
     /**
