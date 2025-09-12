@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class CourseResource extends JsonResource
 {
@@ -35,14 +36,14 @@ class CourseResource extends JsonResource
             'modules'              => CourseModuleResource::collection($this->whenLoaded('modules')),
             'skill_tags'           => SkillTagResource::collection($this->whenLoaded('skillTags')),
             'enrollment'           => new CourseEnrollmentResource($this->whenLoaded('userEnrollment')),
-            'progress'             => new UserCourseProgressResource($this->whenLoaded('userProgress')),
+            'progress'             => new UserCourseProgressResource($this->whenLoaded('currentUserProgress')),
             'programming_language' => new ProgrammingLanguageResource($this->whenLoaded('programmingLanguage')),
 
             // Computed fields
             'lessons_count'        => $this->when($this->relationLoaded('modules'), function () {
-                return $this->modules->sum(function ($module) {
-                    return $module->lessons->count();
-                });
+                return DB::table('lessons')
+                    ->whereIn('course_module_id', $this->modules->pluck('id'))
+                    ->count();
             }),
             'modules_count'        => $this->whenHas('modules_count'),
             'enrolled_users_count' => $this->whenHas('enrollments_count'),
