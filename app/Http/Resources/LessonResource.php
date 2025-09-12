@@ -28,8 +28,7 @@ class LessonResource extends JsonResource
             // Relationships
             'module'             => new CourseModuleResource($this->whenLoaded('module')),
             'course'             => new CourseResource($this->whenLoaded('course')),
-            'prerequisites'      => LessonResource::collection($this->whenLoaded('prerequisites')),
-            'progress'           => new UserLessonProgressResource($this->whenLoaded('userProgress')),
+            'progress'           => new UserLessonProgressResource($this->whenLoaded('currentUserProgress')),
 
             // Computed fields
             'activities_count'   => $this->when($this->activities_count !== null, $this->activities_count),
