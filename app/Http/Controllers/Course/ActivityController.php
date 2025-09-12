@@ -5,8 +5,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ActivityResource;
 use App\Models\Activity;
 use App\Models\CodingActivityProblem;
+use App\Models\Course;
+use App\Models\CourseModule;
 use App\Models\Lesson;
 use App\Models\QuizQuestion;
+use App\Services\CourseProgressService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -129,12 +132,17 @@ class ActivityController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Lesson $lesson, Activity $activity)
+    public function show(Course $course, CourseModule $module, string $id)
     {
-        if ($activity->lesson_id !== $lesson->id) {
-            return response()->json(['success' => false, 'message' => 'Activity not found in this lesson.'], 404);
+        if (! request()->user()->tokenCan('admin:*') && ! request()->user()->tokenCan('courses:view') && ! Auth::check()) {
+            abort(403, 'Unauthorized. You do not have permission.');
         }
 
+        $activity = Activity::findOrFail($id);
+        if ($activity->course_module_id !== $module->id || $module->course_id !== $course->id) {
+            return response()->json(['success' => false, 'message' => 'Activity not found in this module.'], 404);
+        }
+        
         if ($activity->type === 'code') {
             $activity->load('codingActivityProblem');
         } elseif ($activity->type === 'quiz') {
