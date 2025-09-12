@@ -7,9 +7,7 @@ use App\Models\Activity;
 use App\Models\CodingActivityProblem;
 use App\Models\Course;
 use App\Models\CourseModule;
-use App\Models\Lesson;
 use App\Models\QuizQuestion;
-use App\Services\CourseProgressService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -20,9 +18,16 @@ class ActivityController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Lesson $lesson)
+    public function index(Course $course, CourseModule $module)
     {
-        $activities = $lesson->activities()
+        if ($module->course_id !== $course->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Module not found in this course.',
+            ], 404);
+        }
+
+        $activities = $module->activities()
             ->with(['codingActivityProblem', 'quizQuestions'])
             ->orderBy('order')
             ->get();
@@ -35,14 +40,14 @@ class ActivityController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request, Lesson $lesson)
+    public function store(Request $request, Course $course, CourseModule $module)
     {
         $validated = $request->validate([
             'title'                      => [
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('activities')->where('lesson_id', $lesson->id),
+                Rule::unique('activities')->where('course_module_id', $module->id),
             ],
             'description'                => 'nullable|string',
             'type'                       => 'required|in:code,quiz',
@@ -71,9 +76,9 @@ class ActivityController extends Controller
         try {
             // Set default order if not provided
             if (! isset($validated['order'])) {
-                $validated['order'] = ($lesson->activities()->max('order') ?? 0) + 1;
+                $validated['order'] = ($module->activities()->max('order') ?? 0) + 1;
             } else {
-                $this->reorderActivities($lesson, $validated['order']);
+                $this->reorderActivities($module, $validated['order']);
             }
 
             // Create the activity first
@@ -81,7 +86,7 @@ class ActivityController extends Controller
                 'title', 'description', 'type', 'exp_reward', 'order', 'is_required',
             ])->toArray();
 
-            $activity = $lesson->activities()->create($activityData);
+            $activity = $module->activities()->create($activityData);
 
             // Handle coding activity
             if ($validated['type'] === 'code') {
@@ -159,10 +164,10 @@ class ActivityController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Lesson $lesson, Activity $activity)
+    public function update(Request $request, CourseModule $module, Activity $activity)
     {
-        if ($activity->lesson_id !== $lesson->id) {
-            return response()->json(['success' => false, 'message' => 'Activity not found in this lesson.'], 404);
+        if ($activity->course_module_id !== $module->id) {
+            return response()->json(['success' => false, 'message' => 'Activity not found in this module.'], 404);
         }
 
         $validated = $request->validate([
@@ -170,7 +175,7 @@ class ActivityController extends Controller
                 'sometimes',
                 'string',
                 'max:255',
-                Rule::unique('activities')->where('lesson_id', $lesson->id)->ignore($activity->id),
+                Rule::unique('activities')->where('course_module_id', $module->id)->ignore($activity->id),
             ],
             'description'                => 'nullable|string',
             'type'                       => 'sometimes|in:code,quiz',
@@ -199,7 +204,7 @@ class ActivityController extends Controller
 
         try {
             if ($request->has('order') && $validated['order'] !== $activity->order) {
-                $this->reorderActivities($lesson, $validated['order'], $activity->id);
+                $this->reorderActivities($module, $validated['order'], $activity->id);
             }
 
             // Update basic activity data
@@ -289,10 +294,10 @@ class ActivityController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Lesson $lesson, Activity $activity)
+    public function destroy(CourseModule $module, Activity $activity)
     {
-        if ($activity->lesson_id !== $lesson->id) {
-            return response()->json(['success' => false, 'message' => 'Activity not found in this lesson.'], 404);
+        if ($activity->course_module_id !== $module->id) {
+            return response()->json(['success' => false, 'message' => 'Activity not found in this module.'], 404);
         }
 
         DB::beginTransaction();
@@ -308,7 +313,7 @@ class ActivityController extends Controller
 
             $activity->delete();
 
-            $this->reorderActivitiesAfterDeletion($lesson);
+            $this->reorderActivitiesAfterDeletion($module);
 
             DB::commit();
 
@@ -327,9 +332,9 @@ class ActivityController extends Controller
     /**
      * Reorder activities to accommodate a new or updated item.
      */
-    private function reorderActivities(Lesson $lesson, int $newOrder, ?int $excludeId = null): void
+    private function reorderActivities(CourseModule $module, int $newOrder, ?int $excludeId = null): void
     {
-        $query = $lesson->activities()->where('order', '>=', $newOrder);
+        $query = $module->activities()->where('order', '>=', $newOrder);
 
         if ($excludeId) {
             $query->where('id', '!=', $excludeId);
@@ -341,9 +346,9 @@ class ActivityController extends Controller
     /**
      * Reorder activities after one has been deleted.
      */
-    private function reorderActivitiesAfterDeletion(Lesson $lesson): void
+    private function reorderActivitiesAfterDeletion(CourseModule $module): void
     {
-        $activities = $lesson->activities()->orderBy('order')->get();
+        $activities = $module->activities()->orderBy('order')->get();
 
         foreach ($activities as $index => $activity) {
             $activity->update(['order' => $index + 1]);
