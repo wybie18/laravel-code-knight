@@ -1,13 +1,13 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 class Lesson extends Model
 {
     protected $fillable = [
-        'module_id',
+        'course_module_id',
         'slug',
         'title',
         'content',
@@ -29,12 +29,17 @@ class Lesson extends Model
 
     public function module()
     {
-        return $this->belongsTo(CourseModule::class);
+        return $this->belongsTo(CourseModule::class, 'course_module_id');
     }
 
     public function userProgress()
     {
         return $this->hasMany(UserLessonProgress::class);
+    }
+
+    public function currentUserProgress()
+    {
+        return $this->hasOne(UserLessonProgress::class)->where('user_id', Auth::id());
     }
 
     public function prerequisites()
