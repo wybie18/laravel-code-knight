@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Activity extends Model
 {
     protected $fillable = [
-        'lesson_id',
+        'course_module_id',
         'title',
         'description',
         'type',
@@ -19,7 +19,7 @@ class Activity extends Model
 
     public function module()
     {
-        return $this->belongsTo(CourseModule::class);
+        return $this->belongsTo(CourseModule::class, 'course_module_id');
     }
 
     public function codingActivityProblem()
