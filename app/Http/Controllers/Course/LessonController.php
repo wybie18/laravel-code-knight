@@ -106,11 +106,12 @@ class LessonController extends Controller
         }
 
         if (Auth::check()) {
-            $lesson->load(['currentUserProgress']);
+            $lesson->load(['currentUserProgress', 'course.programmingLanguage']);
         }
 
         return (new LessonResource($lesson))->additional([
             'success' => true,
+            'prev_content' => $this->progressService->getPrevContentData($lesson)
         ]);
     }
 
@@ -237,8 +238,7 @@ class LessonController extends Controller
         
         return response()->json([
             'success' => true,
-            'message' => 'Lesson marked as completed!',
-            'redirect_url' => $this->progressService->getNextContentUrl(Auth::user(), $lesson)
+            'data' => $this->progressService->getNextContentData($lesson)
         ]);
     }
 }
