@@ -40,7 +40,7 @@ class CourseController extends Controller
 
         $query = Course::query();
 
-        if ($request->has('search')) {
+        if ($request->filled('search')) {
             $searchTerm = $request->input('search');
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('title', 'like', "%{$searchTerm}%")
@@ -49,22 +49,22 @@ class CourseController extends Controller
             });
         }
 
-        if ($request->has('duration_min') && $request->has('duration_max')) {
+        if ($request->filled('duration_min') && $request->filled('duration_max')) {
             $query->whereBetween('estimated_duration', [
                 $request->input('duration_min'),
                 $request->input('duration_max'),
             ]);
         }
 
-        if ($request->has('category_id')) {
+        if ($request->filled('category_id')) {
             $query->where('category_id', $request->input('category_id'));
         }
 
-        if ($request->has('difficulty_id')) {
+        if ($request->filled('difficulty_id')) {
             $query->where('difficulty_id', $request->input('difficulty_id'));
         }
 
-        if ($request->has('is_published')) {
+        if ($request->filled('is_published')) {
             $query->where('is_published', $request->boolean('is_published'));
         }
 
@@ -73,14 +73,7 @@ class CourseController extends Controller
 
         if (Auth::check()) {
             $userId = Auth::id();
-            $query->with([
-                'enrollments'  => function ($q) use ($userId) {
-                    $q->where('user_id', $userId);
-                },
-                'userProgress' => function ($q) use ($userId) {
-                    $q->where('user_id', $userId);
-                },
-            ]);
+            $query->with(['userEnrollment', 'currentUserProgress']);
         }
 
         $courses = $query->paginate(15);
@@ -145,7 +138,7 @@ class CourseController extends Controller
             }
 
             if ($user->tokenCan('courses:view')) {
-                $course->load(['userEnrollment', 'currentUserProgress']);
+                $course->load(['userEnrollment', 'currentUserProgress'])->loadCount('enrollments');
                 $statistics           = $this->progressService->getCourseStatistics($user, $course);
                 $currentActiveContent = $this->progressService->getCurrentActiveContent($user, $course);
 
