@@ -3,6 +3,7 @@ namespace App\Services;
 
 use App\Models\Activity;
 use App\Models\Course;
+use App\Models\CourseEnrollment;
 use App\Models\CourseModule;
 use App\Models\Lesson;
 use App\Models\User;
@@ -96,6 +97,8 @@ class CourseProgressService
      */
     public function markLessonCompleted(User $user, Lesson $lesson): void
     {
+        $this->enrollUserInCourse($user, $lesson->module->course);
+
         UserLessonProgress::firstOrCreate([
             'user_id'   => $user->id,
             'lesson_id' => $lesson->id,
@@ -103,8 +106,8 @@ class CourseProgressService
             'completed_at' => now(),
         ]);
 
-        $this->updateModuleProgress($user, $lesson->courseModule);
-        $this->updateCourseProgress($user, $lesson->courseModule->course);
+        $this->updateModuleProgress($user, $lesson->module);
+        $this->updateCourseProgress($user, $lesson->module->course);
     }
 
     /**
@@ -112,6 +115,8 @@ class CourseProgressService
      */
     public function markActivityCompleted(User $user, Activity $activity): void
     {
+        $this->enrollUserInCourse($user, $activity->module->course);
+
         UserActivityProgress::updateOrCreate([
             'user_id'     => $user->id,
             'activity_id' => $activity->id,
@@ -120,8 +125,8 @@ class CourseProgressService
             'completed_at' => now(),
         ]);
 
-        $this->updateModuleProgress($user, $activity->courseModule);
-        $this->updateCourseProgress($user, $activity->courseModule->course);
+        $this->updateModuleProgress($user, $activity->module);
+        $this->updateCourseProgress($user, $activity->module->course);
     }
 
     /**
@@ -179,19 +184,71 @@ class CourseProgressService
             'progress_percentage' => $progressPercentage,
             'completed_at'        => $progressPercentage === 100 ? now() : null,
         ]);
+
+        if ($progressPercentage === 100) {
+            $this->markCourseCompleted($user, $course);
+        }
     }
 
     /**
-     * Get next content URL after completing current content
+     * Get previous content navigation data for current content
+     * Returns data needed for frontend routing instead of backend URLs
      */
-    public function getNextContentUrl(User $user, $currentContent): ?string
+    public function getPrevContentData($currentContent): ?array
     {
         if ($currentContent instanceof Lesson) {
-            $course      = $currentContent->courseModule->course;
+            $course      = $currentContent->module->course;
             $contentType = 'lesson';
             $contentId   = $currentContent->id;
         } elseif ($currentContent instanceof Activity) {
-            $course      = $currentContent->courseModule->course;
+            $course      = $currentContent->module->course;
+            $contentType = 'activity';
+            $contentId   = $currentContent->id;
+        } else {
+            return null;
+        }
+
+        $allContent   = $this->getAllCourseContentOrdered($course);
+        $currentIndex = $this->findContentIndex($allContent, $contentType, $contentId);
+
+        if ($currentIndex !== null && $currentIndex > 0) {
+            $prevContent = $allContent[$currentIndex - 1];
+            $module      = CourseModule::select('id', 'slug', 'title')->find($prevContent['module_id']);
+
+            $contentType = $prevContent['type'] === 'lesson'
+                ? 'lesson'
+                : $prevContent['model']->type;
+
+            return [
+                'type'    => $contentType,
+                'content' => [
+                    'id'    => $prevContent['id'],
+                    'slug'  => $prevContent['model']->slug,
+                    'title' => $prevContent['model']->title,
+                ],
+                'module'  => [
+                    'id'    => $module->id,
+                    'slug'  => $module->slug,
+                    'title' => $module->title,
+                ],
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * Get next content navigation data after completing current content
+     * Returns data needed for frontend routing instead of backend URLs
+     */
+    public function getNextContentData($currentContent): ?array
+    {
+        if ($currentContent instanceof Lesson) {
+            $course      = $currentContent->module->course;
+            $contentType = 'lesson';
+            $contentId   = $currentContent->id;
+        } elseif ($currentContent instanceof Activity) {
+            $course      = $currentContent->module->course;
             $contentType = 'activity';
             $contentId   = $currentContent->id;
         } else {
@@ -203,15 +260,107 @@ class CourseProgressService
 
         if ($currentIndex !== null && isset($allContent[$currentIndex + 1])) {
             $nextContent = $allContent[$currentIndex + 1];
+            $module      = CourseModule::select('id', 'slug', 'title')->find($nextContent['module_id']);
 
-            if ($nextContent['type'] === 'lesson') {
-                return route('courses.modules.lessons.show', [$course->slug, $nextContent['module_id'], $nextContent['id']]);
-            } else {
-                return route('courses.modules.activities.show', [$course->slug, $nextContent['module_id'], $nextContent['id']]);
-            }
+            $contentType = $nextContent['type'] === 'lesson'
+                ? 'lesson'
+                : $nextContent['model']->type;
+
+            return [
+                'type'    => $contentType,
+                'content' => [
+                    'id'    => $nextContent['id'],
+                    'slug'  => $nextContent['model']->slug,
+                    'title' => $nextContent['model']->title,
+                ],
+                'module'  => [
+                    'id'    => $module->id,
+                    'slug'  => $module->slug,
+                    'title' => $module->title,
+                ],
+            ];
         }
 
-        return route('courses.show', $course->id);
+        return null;
+    }
+
+    /**
+     * Get complete navigation context for current content
+     * Useful for frontend to understand current position and available navigation
+     */
+    public function getNavigationContext($currentContent): array
+    {
+        if ($currentContent instanceof Lesson) {
+            $course      = $currentContent->module->course;
+            $contentType = 'lesson';
+            $contentId   = $currentContent->id;
+        } elseif ($currentContent instanceof Activity) {
+            $course      = $currentContent->module->course;
+            $contentType = 'activity';
+            $contentId   = $currentContent->id;
+        } else {
+            return [];
+        }
+
+        $allContent   = $this->getAllCourseContentOrdered($course);
+        $currentIndex = $this->findContentIndex($allContent, $contentType, $contentId);
+
+        if ($currentIndex === null) {
+            return [];
+        }
+
+        $context = [
+            'has_previous' => $currentIndex > 0,
+            'has_next'     => $currentIndex < count($allContent) - 1,
+            'previous'     => null,
+            'next'         => null,
+        ];
+
+        if ($context['has_previous']) {
+            $prevContent     = $allContent[$currentIndex - 1];
+            $prevModule      = CourseModule::select('id', 'slug', 'title')->find($prevContent['module_id']);
+            $prevContentType = $prevContent['type'] === 'lesson'
+                ? 'lesson'
+                : $prevContent['model']->type;
+
+            $context['previous'] = [
+                'type'    => $prevContentType,
+                'content' => [
+                    'id'    => $prevContent['id'],
+                    'slug'  => $prevContent['model']->slug,
+                    'title' => $prevContent['model']->title,
+                ],
+                'module'  => [
+                    'id'    => $prevModule->id,
+                    'slug'  => $prevModule->slug,
+                    'title' => $prevModule->title,
+                ],
+            ];
+        }
+
+        if ($context['has_next']) {
+            $nextContent     = $allContent[$currentIndex + 1];
+            $nextModule      = CourseModule::select('id', 'slug', 'title')->find($nextContent['module_id']);
+            $nextContentType = $nextContent['type'] === 'lesson'
+                ? 'lesson'
+                : $nextContent['model']->type;
+
+            $context['next'] = [
+                'type'    => $nextContentType,
+                'content' => [
+                    'id'    => $nextContent['id'],
+                    'slug'  => $nextContent['model']->slug,
+                    'title' => $nextContent['model']->title,
+                ],
+                'module'  => [
+                    'id'    => $nextModule->id,
+                    'slug'  => $nextModule->slug,
+                    'title' => $nextModule->title,
+                ],
+            ];
+        }
+
+        return $context;
     }
 
     /**
@@ -318,5 +467,51 @@ class CourseProgressService
             }
         }
         return null;
+    }
+
+    /**
+     * Enroll user in course if not already enrolled
+     */
+    public function enrollUserInCourse(User $user, Course $course): bool
+    {
+        $enrollment = CourseEnrollment::where('user_id', $user->id)
+            ->where('course_id', $course->id)
+            ->first();
+
+        if ($enrollment) {
+            return false;
+        }
+
+        CourseEnrollment::create([
+            'user_id'     => $user->id,
+            'course_id'   => $course->id,
+            'enrolled_at' => now(),
+            'status'      => 'active',
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Check if user is enrolled in course
+     */
+    public function isUserEnrolled(User $user, Course $course): bool
+    {
+        return CourseEnrollment::where('user_id', $user->id)
+            ->where('course_id', $course->id)
+            ->exists();
+    }
+
+    /**
+     * Mark course as completed for user (update enrollment)
+     */
+    public function markCourseCompleted(User $user, Course $course): void
+    {
+        CourseEnrollment::where('user_id', $user->id)
+            ->where('course_id', $course->id)
+            ->update([
+                'completed_at' => now(),
+                'status'       => 'completed',
+            ]);
     }
 }
