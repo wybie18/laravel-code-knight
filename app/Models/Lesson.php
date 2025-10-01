@@ -27,6 +27,18 @@ class Lesson extends Model
         return 'slug';
     }
 
+    public function course()
+    {
+        return $this->hasOneThrough(
+            Course::class,
+            CourseModule::class,
+            'id',               // Foreign key on course_modules
+            'id',               // Foreign key on courses
+            'course_module_id', // Local key on lessons
+            'course_id'         // Local key on course_modules
+        );
+    }
+
     public function module()
     {
         return $this->belongsTo(CourseModule::class, 'course_module_id');
