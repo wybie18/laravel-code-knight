@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Course\ActivityController;
+use App\Http\Controllers\Course\CourseCodeExecutionController;
 use App\Http\Controllers\Course\CourseController;
 use App\Http\Controllers\Course\CourseModuleController;
 use App\Http\Controllers\Course\CourseWithContentController;
@@ -36,7 +37,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('courses/{course}/modules/{module}/lessons/{lesson}', [LessonController::class, 'show'])
         ->name('courses.modules.lessons.show');
     
+    Route::post('/lessons/{lesson}/complete', [LessonController::class, 'markCompleted']);
+    
     Route::apiResource('courses.modules.activities', ActivityController::class);
+
+    Route::post('/playground/execute-code', [CourseCodeExecutionController::class, 'executeCode']);
+    Route::post('/activities/{activity}/submit-code', [ActivityController::class, 'submitCode']);
 });
 Route::get('course-categories/all', [CourseCategoryController::class, 'getAllCourseCategories']);
 Route::get('skill-tags/all', [SkillTagController::class, 'getAllSkillTags']);
