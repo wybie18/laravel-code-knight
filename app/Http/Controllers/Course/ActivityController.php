@@ -8,6 +8,9 @@ use App\Models\CodingActivityProblem;
 use App\Models\Course;
 use App\Models\CourseModule;
 use App\Models\QuizQuestion;
+use App\Models\User;
+use App\Services\ActivityService;
+use App\Services\CourseProgressService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +18,15 @@ use Illuminate\Validation\Rule;
 
 class ActivityController extends Controller
 {
+    private CourseProgressService $progressService;
+    private ActivityService $activityService;
+
+    public function __construct(CourseProgressService $progressService, ActivityService $activityService)
+    {
+        $this->progressService = $progressService;
+        $this->activityService = $activityService;
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -147,9 +159,9 @@ class ActivityController extends Controller
         if ($activity->course_module_id !== $module->id || $module->course_id !== $course->id) {
             return response()->json(['success' => false, 'message' => 'Activity not found in this module.'], 404);
         }
-        
+
         if ($activity->type === 'code') {
-            $activity->load('codingActivityProblem');
+            $activity->load(['codingActivityProblem', 'course.programmingLanguage']);
         } elseif ($activity->type === 'quiz') {
             $activity->load('quizQuestions');
         }
@@ -158,7 +170,10 @@ class ActivityController extends Controller
             $query->where('user_id', Auth::id());
         }]);
 
-        return (new ActivityResource($activity))->additional(['success' => true]);
+        return (new ActivityResource($activity))->additional([
+            'success'      => true,
+            'prev_content' => $this->progressService->getPrevContentData($activity),
+        ]);
     }
 
     /**
@@ -352,6 +367,43 @@ class ActivityController extends Controller
 
         foreach ($activities as $index => $activity) {
             $activity->update(['order' => $index + 1]);
+        }
+    }
+
+    public function submitCode(Request $request, string $id)
+    {
+        $activity = Activity::findOrFail($id);
+        if ($activity->type !== "code") {
+            return response()->json([
+                'success' => false,
+                'message' => 'This activity does not support code submission',
+            ], 400);
+        }
+
+        $validatedData = $request->validate([
+            'language_id' => 'required|integer|exists:programming_languages,id',
+            'user_code'   => 'required|string',
+        ]);
+
+        try {
+            $result = $this->activityService->submitCode(
+                $activity->id,
+                $validatedData['language_id'],
+                $validatedData['user_code'],
+                $request->user()
+            );
+
+            return response()->json([
+                'success'      => true,
+                'data'         => $result,
+                'next_content' => $this->progressService->getNextContentData($activity),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Code execution failed',
+                'error'   => $e->getMessage(),
+            ], 500);
         }
     }
 }
