@@ -21,7 +21,6 @@ class LessonResource extends JsonResource
             'exp_reward'         => $this->exp_reward,
             'estimated_duration' => $this->estimated_duration,
             'order'              => $this->order,
-            'is_published'       => $this->is_published,
             'created_at'         => $this->created_at,
             'updated_at'         => $this->updated_at,
 
