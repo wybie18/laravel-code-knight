@@ -1,6 +1,7 @@
 <?php
 namespace App\Services;
 
+use App\Models\CodingActivityProblem;
 use App\Models\CodingChallenge;
 use App\Models\ProgrammingLanguage;
 use Illuminate\Support\Facades\Http;
@@ -14,6 +15,146 @@ class Judge0TestRunner
     {
         $this->judge0Url    = config('services.judge0.url');
         $this->judge0ApiKey = config('services.judge0.api_key');
+    }
+
+    /**
+     * Run code in playground mode (without test cases)
+     * Returns the raw output of the code execution
+     */
+    public function runPlaygroundCode(
+        ProgrammingLanguage $language,
+        string $userCode,
+        ?string $input = null
+    ): array {
+        try {
+            $submissionToken = $this->submitPlaygroundCode($userCode, $language->language_id, $input);
+
+            if (!$submissionToken) {
+                return [
+                    'success' => false,
+                    'error' => 'Failed to submit code for execution',
+                    'output' => null,
+                    'stderr' => null,
+                    'execution_time' => null,
+                    'memory_usage' => null,
+                ];
+            }
+
+            $judgeResult = $this->getSubmissionResult($submissionToken);
+
+            if (!$judgeResult) {
+                return [
+                    'success' => false,
+                    'error' => 'Failed to get execution result',
+                    'output' => null,
+                    'stderr' => null,
+                    'execution_time' => null,
+                    'memory_usage' => null,
+                ];
+            }
+
+            return $this->processPlaygroundResult($judgeResult);
+
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'output' => null,
+                'stderr' => null,
+                'execution_time' => null,
+                'memory_usage' => null,
+            ];
+        }
+    }
+
+    /**
+     * Process playground execution result
+     */
+    private function processPlaygroundResult(array $judgeResult): array
+    {
+        $statusId = $judgeResult['status']['id'];
+        $stdout = null;
+        $stderr = null;
+
+        if (isset($judgeResult['stdout']) && $judgeResult['stdout']) {
+            $stdout = $this->safeDecode($judgeResult['stdout']);
+        }
+
+        if (isset($judgeResult['stderr']) && $judgeResult['stderr']) {
+            $stderr = $this->safeDecode($judgeResult['stderr']);
+        }
+
+        if ($statusId === 3) {
+            return [
+                'success' => true,
+                'error' => null,
+                'output' => $stdout,
+                'stderr' => $stderr,
+                'execution_time' => $judgeResult['time'] ?? null,
+                'memory_usage' => $judgeResult['memory'] ?? null,
+                'status' => $judgeResult['status']['description'] ?? 'Completed',
+            ];
+        }
+
+        return [
+            'success' => false,
+            'error' => $judgeResult['status']['description'] ?? 'Unknown execution error',
+            'output' => $stdout,
+            'stderr' => $stderr,
+            'execution_time' => $judgeResult['time'] ?? null,
+            'memory_usage' => $judgeResult['memory'] ?? null,
+            'status' => $judgeResult['status']['description'] ?? 'Failed',
+        ];
+    }
+
+    public function runActivityTestCases(
+        CodingActivityProblem $problem,
+        ProgrammingLanguage $language,
+        string $userCode
+    ): array {
+        $testCases = json_decode($problem->test_cases, true);
+        $results   = [];
+
+        foreach ($testCases as $index => $testCase) {
+            $result = $this->runSingleTestCase(
+                $userCode,
+                $language,
+                $testCase,
+                $index,
+                true
+            );
+
+            $results[] = $result;
+
+            if (! $result['passed']) {
+                break;
+            }
+        }
+
+        $public_cases_to_show = 3;
+        $publicResults        = array_slice($results, 0, $public_cases_to_show);
+        $allPassed            = collect($results)->every('passed');
+
+        if (! $allPassed && count($results) > $public_cases_to_show) {
+            $firstFailedResult = collect($results)->firstWhere('passed', false);
+            $firstFailedIndex  = array_search($firstFailedResult, $results);
+
+            if ($firstFailedIndex >= $public_cases_to_show) {
+                $publicResults   = $publicResults;
+                $publicResults[] = [
+                    'test_case' => 'Hidden Test',
+                    'passed'    => false,
+                    'error'     => 'One or more hidden test cases failed.',
+                ];
+            }
+        }
+
+        return [
+            'passed'       => collect($results)->every('passed'),
+            'total_cases'  => count($testCase),
+            'passed_cases' => collect($results)->where('passed', true)->count(),
+            'results'      => $publicResults,
+        ];
     }
 
     /**
@@ -82,12 +223,13 @@ class Judge0TestRunner
         string $userCode,
         ProgrammingLanguage $language,
         array $testCase,
-        int $index
+        int $index,
+        bool $isActivity = false
     ): array {
         try {
-            $cleanUserCode = $this->cleanCode($userCode);
+            $cleanUserCode = $this->cleanText($userCode);
             
-            $completeCode = $this->prepareCodeWithTestCase($cleanUserCode, $language, $testCase);
+            $completeCode = $this->prepareCodeWithTestCase($cleanUserCode, $language, $testCase, $isActivity);
 
             $submissionToken = $this->submitCode($completeCode, $language->language_id);
 
@@ -111,25 +253,25 @@ class Judge0TestRunner
     /**
      * Clean and normalize code to prevent encoding issues
      */
-    private function cleanCode(string $code): string
+    private function cleanText(string $text): string
     {
         // Remove BOM if present
-        $code = str_replace("\xEF\xBB\xBF", '', $code);
+        $text = str_replace("\xEF\xBB\xBF", '', $text);
         
         // Normalize line endings to \n
-        $code = str_replace(["\r\n", "\r"], "\n", $code);
+        $text = str_replace(["\r\n", "\r"], "\n", $text);
         
         // Remove any null bytes or other problematic characters
-        $code = str_replace("\0", '', $code);
+        $text = str_replace("\0", '', $text);
         
         // Ensure UTF-8 encoding
-        if (!mb_check_encoding($code, 'UTF-8')) {
-            $code = mb_convert_encoding($code, 'UTF-8', mb_detect_encoding($code));
+        if (!mb_check_encoding($text, 'UTF-8')) {
+            $text = mb_convert_encoding($text, 'UTF-8', mb_detect_encoding($text));
         }
         
-        $code = trim($code);
+        $text = trim($text);
         
-        return $code;
+        return $text;
     }
 
     /**
@@ -138,21 +280,22 @@ class Judge0TestRunner
     private function prepareCodeWithTestCase(
         string $userCode,
         ProgrammingLanguage $language,
-        array $testCase
+        array $testCase,
+        bool $isActivity = false
     ): string {
         $input        = $testCase['input'];
         $languageName = strtolower($language->name);
 
         switch ($languageName) {
             case 'python':
-                return $this->preparePythonCode($userCode, $input);
+                return $this->preparePythonCode($userCode, $input, $isActivity);
 
             case 'javascript':
             case 'node.js':
-                return $this->prepareJavaScriptCode($userCode, $input);
+                return $this->prepareJavaScriptCode($userCode, $input, $isActivity);
 
             case 'java':
-                return $this->prepareJavaCode($userCode, $input);
+                return $this->prepareJavaCode($userCode, $input, $isActivity);
 
             default:
                 throw new \Exception("Unsupported language: {$language->name}");
@@ -160,26 +303,98 @@ class Judge0TestRunner
     }
 
     /**
+     * Check if input is empty or contains only empty values
+     */
+    private function hasInput($input): bool
+    {
+        if (empty($input) || $input === '' || $input === '""') {
+            return false;
+        }
+        
+        if (is_array($input) && empty($input)) {
+            return false;
+        }
+        
+        return true;
+    }
+
+    /**
+     * Check if user code has a Solution class
+     */
+    private function hasSolutionClass(string $userCode, string $languageName): bool
+    {   
+        switch ($languageName) {
+            case 'python':
+                return preg_match('/class\s+Solution\s*[\(:]/i', $userCode) && 
+                       preg_match('/def\s+main\s*\(/i', $userCode);
+                
+            case 'javascript':
+            case 'node.js':
+                return preg_match('/class\s+Solution\s*\{/i', $userCode) && 
+                       preg_match('/main\s*\(/i', $userCode);
+                
+            case 'java':
+                return preg_match('/class\s+Solution\s*\{/i', $userCode) && 
+                       preg_match('/public\s+\w+\s+main\s*\(/i', $userCode);
+                
+            default:
+                return false;
+        }
+    }
+
+    /**
      * Prepare Python code with test input
      */
-    private function preparePythonCode(string $userCode, array $input): string
+    private function preparePythonCode(string $userCode, $input, bool $isActivity = false): string
     {
-        $inputValues = $this->formatInputForPython($input);
+        $hasSolutionClass = $this->hasSolutionClass($userCode, 'python');
+        if ($isActivity && !$hasSolutionClass) {
+            if (!$this->hasInput($input)) {
+                return $userCode;
+            } else {
+                $inputArray = is_string($input) ? json_decode($input, true) : $input;
+                $inputValues = $this->formatInputForPython($inputArray);
+                
+                return <<<PYTHON
+                {$inputValues}
+                {$userCode}
+                PYTHON;
+            }
+        }
 
-        $testCode = <<<PYTHON
-{$userCode}
+        if (!$this->hasInput($input)) {
+            $testCode = <<<PYTHON
+            {$userCode}
 
-# Test execution
-{$inputValues}
-try:
-    solution = Solution()
-    result = solution.main({$this->getPythonArguments($input)})
-    print(repr(result))
-except Exception as e:
-    print(f"Runtime Error: {e}")
-    import sys
-    sys.exit(1)
-PYTHON;
+            # Test execution
+            try:
+                solution = Solution()
+                result = solution.main()
+                print(repr(result))
+            except Exception as e:
+                print(f"Runtime Error: {e}")
+                import sys
+                sys.exit(1)
+            PYTHON;
+        } else {
+            $inputArray = is_string($input) ? json_decode($input, true) : $input;
+            $inputValues = $this->formatInputForPython($inputArray);
+
+            $testCode = <<<PYTHON
+            {$userCode}
+
+            # Test execution
+            {$inputValues}
+            try:
+                solution = Solution()
+                result = solution.main({$this->getPythonArguments($inputArray)})
+                print(repr(result))
+            except Exception as e:
+                print(f"Runtime Error: {e}")
+                import sys
+                sys.exit(1)
+            PYTHON;
+        }
 
         return $testCode;
     }
@@ -187,24 +402,55 @@ PYTHON;
     /**
      * Prepare JavaScript code with test input
      */
-    private function prepareJavaScriptCode(string $userCode, array $input): string
+    private function prepareJavaScriptCode(string $userCode, $input, bool $isActivity = false): string
     {
-        $inputValues = $this->formatInputForJavaScript($input);
+        $hasSolutionClass = $this->hasSolutionClass($userCode, 'javascript');
+        
+        if ($isActivity && !$hasSolutionClass) {
+            if (!$this->hasInput($input)) {
+                return $userCode;
+            } else {
+                $inputArray = is_string($input) ? json_decode($input, true) : $input;
+                $inputValues = $this->formatInputForJavaScript($inputArray);
+                
+                return <<<JAVASCRIPT
+                {$inputValues}
+                {$userCode}
+                JAVASCRIPT;
+            }
+        }
 
-        $testCode = <<<JAVASCRIPT
-{$userCode}
+        if (!$this->hasInput($input)) {
+            $testCode = <<<JAVASCRIPT
+            {$userCode}
 
-// Test execution
-{$inputValues}
-try {
-    const solution = new Solution();
-    const result = solution.main({$this->getJavaScriptArguments($input)});
-    console.log(JSON.stringify(result));
-} catch (error) {
-    console.error('Runtime Error:', error.message);
-    process.exit(1);
-}
-JAVASCRIPT;
+            try {
+                const solution = new Solution();
+                const result = solution.main();
+                console.log(JSON.stringify(result));
+            } catch (error) {
+                console.error('Runtime Error:', error.message);
+                process.exit(1);
+            }
+            JAVASCRIPT;
+        } else {
+            $inputArray = is_string($input) ? json_decode($input, true) : $input;
+            $inputValues = $this->formatInputForJavaScript($inputArray);
+
+            $testCode = <<<JAVASCRIPT
+            {$userCode}
+
+            {$inputValues}
+            try {
+                const solution = new Solution();
+                const result = solution.main({$this->getJavaScriptArguments($inputArray)});
+                console.log(JSON.stringify(result));
+            } catch (error) {
+                console.error('Runtime Error:', error.message);
+                process.exit(1);
+            }
+            JAVASCRIPT;
+        }
 
         return $testCode;
     }
@@ -212,26 +458,60 @@ JAVASCRIPT;
     /**
      * Prepare Java code with test input
      */
-    private function prepareJavaCode(string $userCode, array $input): string
+    private function prepareJavaCode(string $userCode, $input, bool $isActivity = false): string
     {
-        $inputValues = $this->formatInputForJava($input);
+        $hasSolutionClass = $this->hasSolutionClass($userCode, 'java');
 
-        $mainMethod = <<<JAVA
-
-    public static void main(String[] args) {
-        try {
-            {$inputValues}
-            Solution solution = new Solution();
-            Object result = solution.main({$this->getJavaArguments($input)});
-            System.out.println(java.util.Arrays.deepToString(new Object[]{result}));
-        } catch (Exception e) {
-            System.err.println("Runtime Error: " + e.getMessage());
-            System.exit(1);
+        if ($isActivity && !$hasSolutionClass) {
+            if (!$this->hasInput($input)) {
+                return $userCode;
+            } else {
+                 $inputArray = is_string($input) ? json_decode($input, true) : $input;
+                $inputValues = $this->formatInputForJava($inputArray);
+                
+                if (preg_match('/(\s*public\s+static\s+void\s+main\s*\([^)]*\)\s*\{)/', $userCode, $matches, PREG_OFFSET_CAPTURE)) {
+                    $mainMethodStart = $matches[1][1] + strlen($matches[1][0]);
+                    return substr($userCode, 0, $mainMethodStart) . "\n" . $inputValues . "\n" . substr($userCode, $mainMethodStart);
+                }
+                
+                return $inputValues . "\n" . $userCode;
+            }
         }
-    }
-JAVA;
 
-        // Insert main method into the class
+        if (!$this->hasInput($input)) {
+            $mainMethod = <<<JAVA
+
+                public static void main(String[] args) {
+                    try {
+                        Solution solution = new Solution();
+                        Object result = solution.main();
+                        System.out.println(java.util.Arrays.deepToString(new Object[]{result}));
+                    } catch (Exception e) {
+                        System.err.println("Runtime Error: " + e.getMessage());
+                        System.exit(1);
+                    }
+                }
+            JAVA;
+        } else {
+            $inputArray = is_string($input) ? json_decode($input, true) : $input;
+            $inputValues = $this->formatInputForJava($inputArray);
+
+            $mainMethod = <<<JAVA
+
+                public static void main(String[] args) {
+                    try {
+                        {$inputValues}
+                        Solution solution = new Solution();
+                        Object result = solution.main({$this->getJavaArguments($inputArray)});
+                        System.out.println(java.util.Arrays.deepToString(new Object[]{result}));
+                    } catch (Exception e) {
+                        System.err.println("Runtime Error: " + e.getMessage());
+                        System.exit(1);
+                    }
+                }
+            JAVA;
+        }
+
         $lastBrace = strrpos($userCode, '}');
         if ($lastBrace !== false) {
             return substr($userCode, 0, $lastBrace) . $mainMethod . "\n}";
@@ -403,6 +683,42 @@ JAVA;
     }
 
     /**
+     * Submit code to Judge0 for playground execution
+     */
+    private function submitPlaygroundCode(string $code, int $languageId, ?string $input = null): ?string
+    {
+        // Ensure the code is properly encoded
+        $encodedCode = mb_convert_encoding($code, 'UTF-8', 'UTF-8');
+
+        $headers = [
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json'
+        ];
+
+        if ($this->judge0ApiKey) {
+            $headers['X-RapidAPI-Key'] = $this->judge0ApiKey;
+        }
+
+        $payload = [
+            'source_code' => $encodedCode,
+            'language_id' => $languageId,
+            'stdin' => $input ?? '',
+            'expected_output' => null,
+        ];
+
+        $response = Http::withHeaders($headers)
+            ->timeout(30)
+            ->post("{$this->judge0Url}/submissions", $payload);
+
+        if ($response->successful()) {
+            $responseData = $response->json();
+            return $responseData['token'] ?? null;
+        }
+
+        return null;
+    }
+
+    /**
      * Get submission result from Judge0
      */
     private function getSubmissionResult(string $token): ?array
@@ -519,8 +835,8 @@ JAVA;
     private function compareOutputs($actual, $expected): bool
     {
         // Parse both outputs
-        $actualParsed = $this->tryParseOutput($actual);
-        $expectedParsed = $this->tryParseOutput($expected);
+        $actualParsed = $this->tryParseOutput($this->cleanText($actual));
+        $expectedParsed = $this->tryParseOutput($this->cleanText($expected));
 
         return $this->deepEquals($actualParsed, $expectedParsed);
     }
