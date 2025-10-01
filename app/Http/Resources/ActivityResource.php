@@ -32,6 +32,9 @@ class ActivityResource extends JsonResource
             'submissions' => UserActivitySubmissionResource::collection($this->whenLoaded('activitySubmissions')),
             'created_at'  => $this->created_at,
             'updated_at'  => $this->updated_at,
+
+            'module'      => new CourseModuleResource($this->whenLoaded('module')),
+            'course'      => new CourseResource($this->whenLoaded('course')),
         ];
     }
 }
