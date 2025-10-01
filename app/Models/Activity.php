@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -16,6 +15,18 @@ class Activity extends Model
         'order',
         'is_required',
     ];
+
+    public function course()
+    {
+        return $this->hasOneThrough(
+            Course::class,
+            CourseModule::class,
+            'id',
+            'id',
+            'course_module_id',
+            'course_id'
+        );
+    }
 
     public function module()
     {
