@@ -52,6 +52,11 @@ class AuthController extends Controller
         // Create a new Sanctum personal access token for the user
         $token = $user->createToken($request->device_name)->plainTextToken;
 
+        $stats = null;
+        if ($user->role->name === 'student') {
+            $stats = $this->getUserStats($user);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Account registered successfully!',
@@ -66,6 +71,7 @@ class AuthController extends Controller
                     'email'      => $user->email,
                     'role'       => $user->role->name ?? null,
                 ],
+                'stats' => $stats
             ],
         ], 201);
     }
@@ -116,6 +122,11 @@ class AuthController extends Controller
 
         $token = $user->createToken($request->device_name, $abilities)->plainTextToken;
 
+        $stats = null;
+        if ($user->role->name === 'student') {
+            $stats = $this->getUserStats($user);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Login successful!',
@@ -130,6 +141,7 @@ class AuthController extends Controller
                     'email'      => $user->email,
                     'role'       => $user->role->name ?? null,
                 ],
+                'stats' => $stats,
             ],
         ], 200);
     }
@@ -146,5 +158,22 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Logged out successfully.'], 200);
+    }
+
+    private function getUserStats(User $user)
+    {
+        return [
+            'total_xp'              => $user->total_xp,
+            'current_level'         => $user->current_level,
+            'courses_enrolled'      => $user->courseEnrollments()->count(),
+            'courses_completed'     => $user->courseProgress()->whereNotNull('completed_at')->count(),
+            'activities_completed'  => $user->activityProgress()->whereNotNull('completed_at')->count(),
+            'achievements_earned'   => $user->achievements()->count(),
+            'badges_earned'         => $user->badges()->count(),
+            'current_streak'        => $user->streaks()->latest()->first()->current_streak ?? 0,
+            'longest_streak'        => $user->streaks()->latest()->first()->longest_streak ?? 0,
+            'total_submissions'     => $user->activitySubmissions()->count(),
+            'challenge_submissions' => $user->challengeSubmissions()->count(),
+        ];
     }
 }
