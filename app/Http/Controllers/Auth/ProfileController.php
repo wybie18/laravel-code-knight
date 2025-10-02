@@ -24,7 +24,7 @@ class ProfileController extends Controller
 
     public function update(Request $request)
     {
-        if (! $request->user()->tokenCan('admin:*') && ! $request->user()->tokenCan(['profile:update'])) {
+        if (! $request->user()->tokenCan('admin:*') && ! $request->user()->tokenCan('profile:update')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
         $validated = $request->validate([
@@ -65,7 +65,7 @@ class ProfileController extends Controller
 
     public function destroy(Request $request)
     {
-        if (! $request->user()->tokenCan('admin:*') && ! $request->user()->tokenCan(['profile:update'])) {
+        if (! $request->user()->tokenCan('admin:*') && ! $request->user()->tokenCan('profile:update')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
         $request->validate([
@@ -77,9 +77,6 @@ class ProfileController extends Controller
         $user->currentAccessToken()->delete();
 
         $user->delete();
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
 
         return response()->json([null], 204);
     }
