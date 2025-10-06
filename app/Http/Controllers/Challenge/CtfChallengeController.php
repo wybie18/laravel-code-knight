@@ -202,7 +202,7 @@ class CtfChallengeController extends Controller
             'description'         => 'nullable|string',
             'difficulty_id'       => 'required|exists:difficulties,id',
             'points'              => 'required|integer|min:0',
-            'hints'               => 'nullable|json',
+            'hints'               => 'nullable|string',
 
             'flag'                => 'required|string|max:255',
             'category_id'         => 'required|exists:ctf_categories,id',
