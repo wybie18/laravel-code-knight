@@ -98,7 +98,7 @@ class ChallengeCodeExecutionService
 
     private function validateTestCases(CodingChallenge $codingChallenge): void
     {
-        $testCases = json_decode($codingChallenge->test_cases, true);
+        $testCases = $codingChallenge->test_cases;
 
         if (empty($testCases)) {
             throw new \Exception('No test cases found for this challenge');

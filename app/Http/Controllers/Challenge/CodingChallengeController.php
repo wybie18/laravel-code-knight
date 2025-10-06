@@ -121,6 +121,7 @@ class CodingChallengeController extends Controller
         DB::beginTransaction();
 
         try {
+            $validated['test_cases'] = json_decode($validated['test_cases'], true);
             $codingChallenge = CodingChallenge::create([
                 'problem_statement' => $validated['problem_statement'],
                 'test_cases'        => $validated['test_cases'],
@@ -217,6 +218,7 @@ class CodingChallengeController extends Controller
         DB::beginTransaction();
 
         try {
+            $validated['test_cases'] = json_decode($validated['test_cases'], true);
             $codingChallenge = $challenge->challengeable;
 
             $codingChallenge->update([

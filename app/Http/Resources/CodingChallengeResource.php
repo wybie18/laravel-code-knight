@@ -12,7 +12,7 @@ class CodingChallengeResource extends JsonResource
      */
     public function toArray($request)
     {
-        $allTestCases = json_decode($this->test_cases, true);
+        $allTestCases = $this->test_cases;
         $isAdmin      = $request->user() && $request->user()->tokenCan('admin:*');
 
         if ($isAdmin) {
