@@ -64,6 +64,8 @@ class BadgeController extends Controller
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
+        $validated['requirements'] = json_decode($validated['requirements'], true);
+
         $validated['slug'] = Str::slug($validated['name']);
 
         $count = Badge::where('slug', 'like', $validated['slug'] . '%')->count();
@@ -128,6 +130,8 @@ class BadgeController extends Controller
         if (! $request->user()->tokenCan('admin:*')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
+
+        $validated['requirements'] = json_decode($validated['requirements'], true);
 
         if ($request->has('name')) {
             $validated['slug'] = Str::slug($validated['name']);
