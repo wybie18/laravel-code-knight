@@ -167,15 +167,21 @@ class CourseProgressService
      */
     public function updateCourseProgress(User $user, Course $course): void
     {
-        $totalModules     = $course->modules()->count();
-        $completedModules = UserModuleProgress::where('user_id', $user->id)
-            ->whereHas('courseModule', function ($query) use ($course) {
-                $query->where('course_id', $course->id);
-            })
-            ->whereNotNull('completed_at')
-            ->count();
+        $allContent = $this->getAllCourseContentOrdered($course);
+        $totalContent = count($allContent);
+        
+        if ($totalContent === 0) {
+            return;
+        }
 
-        $progressPercentage = $totalModules > 0 ? round(($completedModules / $totalModules) * 100) : 0;
+        $completedContent = 0;
+        foreach ($allContent as $content) {
+            if ($this->isContentCompleted($user, $content)) {
+                $completedContent++;
+            }
+        }
+
+        $progressPercentage = round(($completedContent / $totalContent) * 100);
 
         UserCourseProgress::updateOrCreate([
             'user_id'   => $user->id,
@@ -183,6 +189,9 @@ class CourseProgressService
         ], [
             'progress_percentage' => $progressPercentage,
             'completed_at'        => $progressPercentage === 100 ? now() : null,
+            'started_at'          => UserCourseProgress::where('user_id', $user->id)
+                ->where('course_id', $course->id)
+                ->value('started_at') ?? now(),
         ]);
 
         if ($progressPercentage === 100) {
@@ -241,7 +250,7 @@ class CourseProgressService
      * Get next content navigation data after completing current content
      * Returns data needed for frontend routing instead of backend URLs
      */
-    public function getNextContentData($currentContent): ?array
+    public function getNextContentData(User $user, $currentContent): ?array
     {
         if ($currentContent instanceof Lesson) {
             $course      = $currentContent->module->course;
@@ -277,6 +286,21 @@ class CourseProgressService
                     'id'    => $module->id,
                     'slug'  => $module->slug,
                     'title' => $module->title,
+                ],
+                'is_course_complete' => false,
+            ];
+        }
+
+        if ($currentIndex === count($allContent) - 1) {
+            $isCourseComplete = $this->isCourseFullyCompleted($user, $course);
+            
+            return [
+                'type'               => 'congratulations',
+                'is_course_complete' => $isCourseComplete,
+                'course'             => [
+                    'id'    => $course->id,
+                    'slug'  => $course->slug,
+                    'title' => $course->title,
                 ],
             ];
         }
@@ -513,5 +537,22 @@ class CourseProgressService
                 'completed_at' => now(),
                 'status'       => 'completed',
             ]);
+    }
+
+    private function isCourseFullyCompleted(User $user, Course $course): bool
+    {
+        $allContent = $this->getAllCourseContentOrdered($course);
+        
+        if (empty($allContent)) {
+            return false;
+        }
+
+        foreach ($allContent as $content) {
+            if (!$this->isContentCompleted($user, $content)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
