@@ -99,7 +99,7 @@ class TypingChallengeController extends Controller
             'description'             => 'nullable|string',
             'difficulty_id'           => 'required|exists:difficulties,id',
             'points'                  => 'required|integer|min:0',
-            'hints'                   => 'nullable|json',
+            'hints'                   => 'nullable|string',
 
             // TypingChallenge specific fields
             'text_content'            => 'required|string',
@@ -188,7 +188,7 @@ class TypingChallengeController extends Controller
             'description'             => 'nullable|string',
             'difficulty_id'           => 'required|exists:difficulties,id',
             'points'                  => 'required|integer|min:0',
-            'hints'                   => 'nullable|json',
+            'hints'                   => 'nullable|string',
 
             'text_content'            => 'required|string',
             'programming_language_id' => 'required|exists:programming_languages,id',
