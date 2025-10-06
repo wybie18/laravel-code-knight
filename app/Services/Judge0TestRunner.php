@@ -112,7 +112,7 @@ class Judge0TestRunner
         ProgrammingLanguage $language,
         string $userCode
     ): array {
-        $testCases = json_decode($problem->test_cases, true);
+        $testCases = $problem->test_cases;
         $results   = [];
 
         foreach ($testCases as $index => $testCase) {
@@ -166,7 +166,7 @@ class Judge0TestRunner
         string $userCode,
         ?int $numTestsToRun = null
     ): array {
-        $testCases = json_decode($codingChallenge->test_cases, true);
+        $testCases = $codingChallenge->test_cases;
         $results   = [];
 
         if ($numTestsToRun !== null) {
