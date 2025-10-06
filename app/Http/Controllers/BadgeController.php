@@ -53,7 +53,7 @@ class BadgeController extends Controller
         $validated = $request->validate([
             'name'         => 'required|string|max:255|unique:badges,name',
             'description'  => 'required|string',
-            'icon'         => 'nullable|mimes:svg,png,jpg,jpeg,gif|max:2048',
+            'icon'         => 'required|mimes:svg,png,jpg,jpeg,gif|max:2048',
             'color'        => 'nullable|string|max:7',
             'category_id'  => 'required|exists:badge_categories,id',
             'exp_reward'   => 'nullable|integer|min:0',
