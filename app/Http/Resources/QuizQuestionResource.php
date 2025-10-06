@@ -13,16 +13,15 @@ class QuizQuestionResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $showAnswers = $this->show_answers || ($request->user() && $request->user()->tokenCan('admin:*'));
         return [
             'id'             => $this->id,
             'question'       => $this->question,
             'type'           => $this->type,
             'points'         => $this->points,
             'order'          => $this->order,
-            'options'        => json_decode($this->options, true),
-            'correct_answer' => json_decode($this->when($showAnswers, $this->correct_answer)),
-            'explanation'    => $this->when($showAnswers, $this->explanation),
+            'options'        => json_decode($this->options),
+            'correct_answer' => json_decode($this->correct_answer),
+            'explanation'    => $this->explanation,
             'created_at'     => $this->created_at,
             'updated_at'     => $this->updated_at,
         ];
