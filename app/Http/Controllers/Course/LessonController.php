@@ -238,7 +238,7 @@ class LessonController extends Controller
         
         return response()->json([
             'success' => true,
-            'data' => $this->progressService->getNextContentData($lesson)
+            'data' => $this->progressService->getNextContentData(Auth::user(), $lesson)
         ]);
     }
 }
