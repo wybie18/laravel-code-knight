@@ -55,7 +55,7 @@ class AchievementController extends Controller
         $validated = $request->validate([
             'name'         => 'required|string|max:255|unique:achievements,name',
             'description'  => 'required|string',
-            'icon'         => 'nullable|mimes:svg,png,jpg,jpeg,gif|max:2048',
+            'icon'         => 'required|mimes:svg,png,jpg,jpeg,gif|max:2048',
             'color'        => 'nullable|string|max:7',
             'type_id'      => 'required|exists:achievement_types,id',
             'exp_reward'   => 'nullable|integer|min:0',
