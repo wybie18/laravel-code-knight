@@ -17,7 +17,7 @@ class CodingActivityProblemResource extends JsonResource
             'id'                => $this->id,
             'problem_statement' => $this->problem_statement,
             'starter_code'      => $this->starter_code,
-            'test_cases'        => json_decode($this->test_cases),
+            'test_cases'        => $this->test_cases,
             'created_at'        => $this->created_at,
             'updated_at'        => $this->updated_at,
         ];

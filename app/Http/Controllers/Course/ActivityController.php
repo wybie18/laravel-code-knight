@@ -102,6 +102,7 @@ class ActivityController extends Controller
 
             // Handle coding activity
             if ($validated['type'] === 'code') {
+                $validated['test_cases'] = json_decode($validated['test_cases'], true);
                 $codingProblem = CodingActivityProblem::create([
                     'problem_statement' => $validated['problem_statement'],
                     'test_cases'        => $validated['test_cases'],
@@ -232,6 +233,7 @@ class ActivityController extends Controller
 
             // Handle coding activity updates
             if (isset($validated['type']) && $validated['type'] === 'code' || $activity->type === 'code') {
+                $validated['test_cases'] = json_decode($validated['test_cases'], true);
                 if ($activity->codingActivityProblem) {
                     $activity->codingActivityProblem->update([
                         'problem_statement' => $validated['problem_statement'],
