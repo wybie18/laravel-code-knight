@@ -43,6 +43,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::post('/playground/execute-code', [CourseCodeExecutionController::class, 'executeCode']);
     Route::post('/activities/{activity}/submit-code', [ActivityController::class, 'submitCode']);
+    Route::post('/activities/{activity}/submit-quiz', [ActivityController::class, 'submitQuiz']);
 });
 Route::get('course-categories/all', [CourseCategoryController::class, 'getAllCourseCategories']);
 Route::get('skill-tags/all', [SkillTagController::class, 'getAllSkillTags']);
