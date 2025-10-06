@@ -29,7 +29,7 @@ class ActivityService
 
         $allTestsPassed = $results['passed'];
 
-        $this->saveSubmission($activity, $user->id, $userCode, $results);
+        $this->saveCodeSubmission($activity, $user->id, $userCode, $results);
 
         if ($allTestsPassed && ! $alreadySolved) {
             $this->progressService->markActivityCompleted($user, $activity);
@@ -46,12 +46,16 @@ class ActivityService
             ->exists();
     }
 
-    private function saveSubmission(Activity $activity, int $userId, string $userCode, array $results)
+    private function saveCodeSubmission(Activity $activity, int $userId, string $userCode, array $results)
     {
         return UserActivitySubmission::create([
             'activity_id' => $activity->id,
             'user_id'     => $userId,
-            'answer'      => $userCode,
+            'answer'      => [
+                'code' => $userCode,
+                'total_cases' => $results['total_cases'] ?? 0,
+                'passed_cases' => $results['passed_cases'] ?? 0,
+            ],
             'is_correct'  => $results['passed'],
         ]);
     }
