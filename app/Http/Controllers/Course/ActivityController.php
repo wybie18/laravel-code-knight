@@ -173,6 +173,7 @@ class ActivityController extends Controller
         return (new ActivityResource($activity))->additional([
             'success'      => true,
             'prev_content' => $this->progressService->getPrevContentData($activity),
+            'next_content' => $this->progressService->getNextContentData(Auth::user(), $activity),
         ]);
     }
 
@@ -396,12 +397,49 @@ class ActivityController extends Controller
             return response()->json([
                 'success'      => true,
                 'data'         => $result,
-                'next_content' => $this->progressService->getNextContentData($activity),
+                'next_content' => $this->progressService->getNextContentData(Auth::user(), $activity),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Code execution failed',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function submitQuiz(Request $request, string $id)
+    {
+        $activity = Activity::findOrFail($id);
+        if ($activity->type !== "quiz") {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid activity type',
+            ], 400);
+        }
+
+        $validated = $request->validate([
+            'answers'   => 'required|array',
+            'answers.*' => 'required',
+        ]);
+
+        try {
+            $results = $this->activityService->submitQuiz(
+                $activity->id,
+                $validated['answers'],
+                $request->user()
+            );
+
+            return response()->json([
+                'success'      => true,
+                'data'         => $results,
+                'next_content' => $this->progressService->getNextContentData(Auth::user(), $activity),
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Quiz submission failed',
                 'error'   => $e->getMessage(),
             ], 500);
         }
