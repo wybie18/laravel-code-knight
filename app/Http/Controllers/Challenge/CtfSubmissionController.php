@@ -5,10 +5,18 @@ use App\Http\Controllers\Controller;
 use App\Models\Challenge;
 use App\Models\ChallengeSubmission;
 use App\Models\CtfChallenge;
+use App\Services\LevelService;
 use Illuminate\Http\Request;
 
 class CtfSubmissionController extends Controller
 {
+    private $levelService;
+
+    public function __construct(LevelService $levelService)
+    {
+        $this->levelService = $levelService;
+    }
+
     public function store(Request $request, string $slug)
     {
         $request->validate([
@@ -36,14 +44,8 @@ class CtfSubmissionController extends Controller
         ]);
 
         if ($isCorrect) {
-            $user->expTransactions()->create([
-                'amount'      => $challenge->points,
-                'description' => "Solved CTF Challenge: {$challenge->title}",
-                'source_type' => Challenge::class,
-                'source_id'   => $challenge->id,
-            ]);
-            $user->increment('total_xp', $challenge->points);
-
+            $description = "Solved CTF Challenge: {$challenge->title}";
+            $this->levelService->addXp($user, $challenge->points, $description, $challenge);
             return response()->json(['success' => true, 'message' => 'Correct flag! Challenge solved.'], 200);
         }
 
