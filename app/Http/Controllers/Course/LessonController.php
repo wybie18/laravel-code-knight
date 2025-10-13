@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Models\CourseModule;
 use App\Models\Lesson;
 use App\Services\CourseProgressService;
+use App\Services\LevelService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -15,10 +16,12 @@ use Illuminate\Validation\Rule;
 class LessonController extends Controller
 {
     private CourseProgressService $progressService;
+    private LevelService $levelService;
 
-    public function __construct(CourseProgressService $progressService)
+    public function __construct(CourseProgressService $progressService, LevelService $levelService)
     {
         $this->progressService = $progressService;
+        $this->levelService    = $levelService;
     }
     /**
      * Display a listing of the resource.
@@ -59,16 +62,16 @@ class LessonController extends Controller
         }
 
         $validated = $request->validate([
-            'title'                     => [
+            'title'              => [
                 'required',
                 'string',
                 'max:255',
                 Rule::unique('lessons')->where('course_id', $course->id),
             ],
-            'content'                   => 'nullable|string',
-            'exp_reward'                => 'nullable|integer|min:0',
-            'estimated_duration'        => 'nullable|integer|min:0',
-            'order'                     => 'sometimes|integer|min:1',
+            'content'            => 'nullable|string',
+            'exp_reward'         => 'nullable|integer|min:0',
+            'estimated_duration' => 'nullable|integer|min:0',
+            'order'              => 'sometimes|integer|min:1',
         ]);
 
         $validated['slug'] = $this->generateUniqueSlug($validated['title'], $module);
@@ -110,8 +113,8 @@ class LessonController extends Controller
         }
 
         return (new LessonResource($lesson))->additional([
-            'success' => true,
-            'prev_content' => $this->progressService->getPrevContentData($lesson)
+            'success'      => true,
+            'prev_content' => $this->progressService->getPrevContentData($lesson),
         ]);
     }
 
@@ -128,7 +131,7 @@ class LessonController extends Controller
         }
 
         $validated = $request->validate([
-            'title'                     => [
+            'title'              => [
                 'sometimes',
                 'string',
                 'max:255',
@@ -136,10 +139,10 @@ class LessonController extends Controller
                     ->where('course_id', $lesson->course_id)
                     ->ignore($lesson->id),
             ],
-            'content'                   => 'nullable|string',
-            'exp_reward'                => 'nullable|integer|min:0',
-            'estimated_duration'        => 'nullable|integer|min:0',
-            'order'                     => 'sometimes|integer|min:1',
+            'content'            => 'nullable|string',
+            'exp_reward'         => 'nullable|integer|min:0',
+            'estimated_duration' => 'nullable|integer|min:0',
+            'order'              => 'sometimes|integer|min:1',
         ]);
 
         if ($request->has('title')) {
@@ -235,10 +238,10 @@ class LessonController extends Controller
     public function markCompleted(Lesson $lesson)
     {
         $this->progressService->markLessonCompleted(Auth::user(), $lesson);
-        
+        $this->levelService->addXp(Auth::user(), $lesson->exp_reward, null, $lesson);
         return response()->json([
             'success' => true,
-            'data' => $this->progressService->getNextContentData(Auth::user(), $lesson)
+            'data'    => $this->progressService->getNextContentData(Auth::user(), $lesson),
         ]);
     }
 }
