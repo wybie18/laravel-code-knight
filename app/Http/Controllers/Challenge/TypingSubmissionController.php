@@ -5,10 +5,18 @@ use App\Http\Controllers\Controller;
 use App\Models\Challenge;
 use App\Models\ChallengeSubmission;
 use App\Models\TypingChallenge;
+use App\Services\LevelService;
 use Illuminate\Http\Request;
 
 class TypingSubmissionController extends Controller
 {
+    private $levelService;
+
+    public function __construct(LevelService $levelService)
+    {
+        $this->levelService = $levelService;
+    }
+
     public function getSubmissionHistory(Request $request, string $slug)
     {
         if (! $request->user()->tokenCan('admin:*') && ! $request->user()->tokenCan('challenge:view')) {
@@ -74,13 +82,8 @@ class TypingSubmissionController extends Controller
         ]);
 
         if ($isCorrect) {
-            $user->expTransactions()->create([
-                'amount'      => $challenge->points,
-                'description' => "Completed Typing Challenge: {$challenge->title}",
-                'source_type' => Challenge::class,
-                'source_id'   => $challenge->id,
-            ]);
-            $user->increment('total_xp', $challenge->points);
+            $description = "Completed Typing Challenge: {$challenge->title}";
+            $this->levelService->addXp($user, $challenge->points, $description, $challenge);
 
             return response()->json(['success' => true, 'message' => 'Challenge completed! All targets achieved.'], 200);
         }
