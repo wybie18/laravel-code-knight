@@ -10,10 +10,12 @@ use App\Models\User;
 class ChallengeCodeExecutionService
 {
     private $testRunner;
+    private $levelService;
 
-    public function __construct(Judge0TestRunner $testRunner)
+    public function __construct(Judge0TestRunner $testRunner, LevelService $levelService)
     {
         $this->testRunner = $testRunner;
+        $this->levelService = $levelService;
     }
 
     public function executeCode(string $slug, int $languageId, string $userCode, ?int $userId = null): array
@@ -50,7 +52,8 @@ class ChallengeCodeExecutionService
         $this->saveSubmission($challenge, $userId, $userCode, $results);
 
         if ($allTestsPassed && ! $alreadySolved) {
-            $this->awardExperiencePoints($user, $challenge);
+            $description = "Solved Coding Challenge: {$challenge->title}";
+            $this->levelService->addXp($user, $challenge->points, $description, $challenge);
         }
 
         $executionTimes = [];
@@ -122,18 +125,6 @@ class ChallengeCodeExecutionService
             'is_correct'         => $results['passed'],
             'results'            => $results,
         ]);
-    }
-
-    private function awardExperiencePoints(User $user, Challenge $challenge): void
-    {
-        $user->expTransactions()->create([
-            'amount'      => $challenge->points,
-            'description' => "Solved Coding Challenge: {$challenge->title}",
-            'source_type' => Challenge::class,
-            'source_id'   => $challenge->id,
-        ]);
-
-        $user->increment('total_xp', $challenge->points);
     }
 
     /**
