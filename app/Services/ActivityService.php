@@ -6,17 +6,18 @@ use App\Models\ProgrammingLanguage;
 use App\Models\User;
 use App\Models\UserActivitySubmission;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class ActivityService
 {
     private CourseProgressService $progressService;
     private Judge0TestRunner $testRunner;
+    private LevelService $levelService;
 
-    public function __construct(CourseProgressService $progressService, Judge0TestRunner $testRunner)
+    public function __construct(CourseProgressService $progressService, Judge0TestRunner $testRunner, LevelService $levelService)
     {
         $this->progressService = $progressService;
         $this->testRunner      = $testRunner;
+        $this->levelService    = $levelService;
     }
 
     public function submitCode(string $activityId, int $languageId, string $userCode, User $user): array
@@ -35,7 +36,8 @@ class ActivityService
 
         if ($allTestsPassed && ! $alreadySolved) {
             $this->progressService->markActivityCompleted($user, $activity);
-            $this->awardExperiencePoints($user, $activity);
+            $description = "Completed Coding Activity: {$activity->title}";
+            $this->levelService->addXp($user, $activity->exp_reward, $description, $activity);
         }
 
         return $results;
@@ -80,7 +82,8 @@ class ActivityService
                 $wasAlreadyCorrect = in_array($question->id, $previouslyCorrectQuestions);
 
                 if ($isCorrect && ! $wasAlreadyCorrect && $question->points > 0) {
-                    $this->awardQuestionXP($user, $question);
+                    $description = "Correct Answer: Question #{$question->order} in {$question->activity->title}";
+                    $this->levelService->addXp($user, $question->points, $description, $question);
                     $newXpAwarded += $question->points;
                 }
 
@@ -118,7 +121,8 @@ class ActivityService
             }
 
             if ($firstPerfectScore && $activity->exp_reward > 0) {
-                $this->awardExperiencePoints($user, $activity);
+                $description = "Completed Quiz: {$activity->title}";
+                $this->levelService->addXp($user, $activity->exp_reward, $description, $activity);
             }
 
             return [
@@ -183,43 +187,7 @@ class ActivityService
     private function isQuizAnswerCorrect($question, $userAnswer): bool
     {
         $correctAnswer = json_decode($question->correct_answer, true);
-        
+
         return $correctAnswer === $userAnswer;
-    }
-
-    private function awardExperiencePoints(User $user, Activity $activity): void
-    {
-        $typeDescriptions = [
-            'code' => 'Solved Coding Activity',
-            'quiz' => 'Completed Quiz',
-        ];
-
-        $activityType    = $activity->type ?? 'activity';
-        $baseDescription = $typeDescriptions[$activityType] ?? 'Completed Activity';
-
-        $description = "{$baseDescription}: {$activity->title}";
-
-        $user->expTransactions()->create([
-            'amount'      => $activity->exp_reward,
-            'description' => $description,
-            'source_type' => Activity::class,
-            'source_id'   => $activity->id,
-        ]);
-
-        $user->increment('total_xp', $activity->exp_reward);
-    }
-
-    private function awardQuestionXP(User $user, $question): void
-    {
-        $description = "Correct Answer: Question #{$question->order} in {$question->activity->title}";
-
-        $user->expTransactions()->create([
-            'amount'      => $question->points,
-            'description' => $description,
-            'source_type' => get_class($question),
-            'source_id'   => $question->id,
-        ]);
-
-        $user->increment('total_xp', $question->points);
     }
 }
