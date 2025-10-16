@@ -12,12 +12,14 @@ class ActivityService
     private CourseProgressService $progressService;
     private Judge0TestRunner $testRunner;
     private LevelService $levelService;
+    private UserActivityService $userActivityService;
 
-    public function __construct(CourseProgressService $progressService, Judge0TestRunner $testRunner, LevelService $levelService)
+    public function __construct(CourseProgressService $progressService, Judge0TestRunner $testRunner, LevelService $levelService, UserActivityService $userActivityService)
     {
-        $this->progressService = $progressService;
-        $this->testRunner      = $testRunner;
-        $this->levelService    = $levelService;
+        $this->progressService     = $progressService;
+        $this->testRunner          = $testRunner;
+        $this->levelService        = $levelService;
+        $this->userActivityService = $userActivityService;
     }
 
     public function submitCode(string $activityId, int $languageId, string $userCode, User $user): array
@@ -37,8 +39,9 @@ class ActivityService
         if ($allTestsPassed && ! $alreadySolved) {
             $this->progressService->markActivityCompleted($user, $activity);
             $description = "Completed Coding Activity: {$activity->title}";
-            $this->levelService->addXp($user, $activity->exp_reward, $description, $activity);
         }
+        $this->levelService->addXp($user, $activity->exp_reward, $description, $activity);
+        $this->userActivityService->logActivity($user, "code_activity_submission", $activity);
 
         return $results;
     }
@@ -124,6 +127,7 @@ class ActivityService
                 $description = "Completed Quiz: {$activity->title}";
                 $this->levelService->addXp($user, $activity->exp_reward, $description, $activity);
             }
+            $this->userActivityService->logActivity($user, "quiz_activity_submission", $activity);
 
             return [
                 'passed'              => $allCorrect,
