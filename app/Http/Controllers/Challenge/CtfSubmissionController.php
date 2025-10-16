@@ -6,15 +6,18 @@ use App\Models\Challenge;
 use App\Models\ChallengeSubmission;
 use App\Models\CtfChallenge;
 use App\Services\LevelService;
+use App\Services\UserActivityService;
 use Illuminate\Http\Request;
 
 class CtfSubmissionController extends Controller
 {
     private $levelService;
+    private $userActivityService;
 
-    public function __construct(LevelService $levelService)
+    public function __construct(LevelService $levelService, UserActivityService $userActivityService)
     {
         $this->levelService = $levelService;
+        $this->userActivityService = $userActivityService;
     }
 
     public function store(Request $request, string $slug)
@@ -48,6 +51,8 @@ class CtfSubmissionController extends Controller
             $this->levelService->addXp($user, $challenge->points, $description, $challenge);
             return response()->json(['success' => true, 'message' => 'Correct flag! Challenge solved.'], 200);
         }
+
+        $this->userActivityService->logActivity($user, "ctf_challenge_submission", $challenge);
 
         return response()->json(['success' => false, 'message' => 'Incorrect flag. Try again!'], 200);
     }
