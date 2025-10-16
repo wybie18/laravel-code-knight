@@ -229,7 +229,7 @@ class CourseProgressService
 
         if ($progressPercentage === 100) {
             $this->markCourseCompleted($user, $course);
-            $this->levelService->addXp($user, $course->completion_exp_reward, "Completed Course: {$course->title}", $course);
+            $this->levelService->addXp($user, $course->exp_reward, "Completed Course: {$course->title}", $course);
         }
     }
 
