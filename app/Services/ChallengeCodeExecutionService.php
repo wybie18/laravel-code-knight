@@ -11,11 +11,13 @@ class ChallengeCodeExecutionService
 {
     private $testRunner;
     private $levelService;
+    private $userActivityService;
 
-    public function __construct(Judge0TestRunner $testRunner, LevelService $levelService)
+    public function __construct(Judge0TestRunner $testRunner, LevelService $levelService, UserActivityService $userActivityService)
     {
         $this->testRunner = $testRunner;
         $this->levelService = $levelService;
+        $this->userActivityService = $userActivityService;
     }
 
     public function executeCode(string $slug, int $languageId, string $userCode, ?int $userId = null): array
@@ -55,6 +57,8 @@ class ChallengeCodeExecutionService
             $description = "Solved Coding Challenge: {$challenge->title}";
             $this->levelService->addXp($user, $challenge->points, $description, $challenge);
         }
+
+        $this->userActivityService->logActivity($user, "code_challenge_submission", $challenge);
 
         $executionTimes = [];
         $memoryUsages   = [];
