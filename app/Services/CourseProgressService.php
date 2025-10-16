@@ -7,6 +7,7 @@ use App\Models\CourseEnrollment;
 use App\Models\CourseModule;
 use App\Models\Lesson;
 use App\Models\User;
+use App\Models\UserActivity;
 use App\Models\UserActivityProgress;
 use App\Models\UserCourseProgress;
 use App\Models\UserLessonProgress;
@@ -17,6 +18,15 @@ class CourseProgressService
     /**
      * Get all course content ordered by module and content order
      */
+    private $levelService;
+    private $userActivityService;
+
+    public function __construct(LevelService $levelService, UserActivityService $userActivityService)
+    {
+        $this->levelService = $levelService;
+        $this->userActivityService = $userActivityService;
+    }
+
     public function getAllCourseContentOrdered(Course $course): array
     {
         $allContent = [];
@@ -97,14 +107,26 @@ class CourseProgressService
      */
     public function markLessonCompleted(User $user, Lesson $lesson): void
     {
+        $this->userActivityService->logActivity($user, "lesson_completion", $lesson);
+
         $this->enrollUserInCourse($user, $lesson->module->course);
 
+        $progress = UserLessonProgress::where('user_id', $user->id)
+            ->where('lesson_id', $lesson->id)
+            ->first();
+
+        if ($progress && $progress->completed_at) {
+            return;
+        }
+        
         UserLessonProgress::firstOrCreate([
             'user_id'   => $user->id,
             'lesson_id' => $lesson->id,
         ], [
             'completed_at' => now(),
         ]);
+
+        $this->levelService->addXp($user, $lesson->exp_reward, "Completed Lesson: {$lesson->title}", $lesson);
 
         $this->updateModuleProgress($user, $lesson->module);
         $this->updateCourseProgress($user, $lesson->module->course);
@@ -115,7 +137,16 @@ class CourseProgressService
      */
     public function markActivityCompleted(User $user, Activity $activity): void
     {
+        $this->userActivityService->logActivity($user, "activity_completion", $activity);
         $this->enrollUserInCourse($user, $activity->module->course);
+
+        $progress = UserActivityProgress::where('user_id', $user->id)
+            ->where('activity_id', $activity->id)
+            ->first();
+        
+        if ($progress && $progress->is_completed) {
+            return;
+        }
 
         UserActivityProgress::updateOrCreate([
             'user_id'     => $user->id,
@@ -124,6 +155,8 @@ class CourseProgressService
             'is_completed' => true,
             'completed_at' => now(),
         ]);
+
+        $this->levelService->addXp($user, $activity->exp_reward, "Completed Activity: {$activity->title}", $activity);
 
         $this->updateModuleProgress($user, $activity->module);
         $this->updateCourseProgress($user, $activity->module->course);
@@ -196,6 +229,7 @@ class CourseProgressService
 
         if ($progressPercentage === 100) {
             $this->markCourseCompleted($user, $course);
+            $this->levelService->addXp($user, $course->completion_exp_reward, "Completed Course: {$course->title}", $course);
         }
     }
 
