@@ -5,6 +5,7 @@ use App\Models\CodingActivityProblem;
 use App\Models\CodingChallenge;
 use App\Models\ProgrammingLanguage;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class Judge0TestRunner
 {
@@ -786,8 +787,13 @@ class Judge0TestRunner
         }
 
         $actualOutput = '';
+
         if (isset($judgeResult['stdout']) && $judgeResult['stdout']) {
             $actualOutput = trim($this->safeDecode($judgeResult['stdout']));
+        }
+
+        if ($actualOutput === "True" || $actualOutput === "False") {
+            $actualOutput = strtolower($actualOutput) === "true";
         }
         
         $expectedOutput = $testCase['expected_output'];
@@ -850,51 +856,44 @@ class Judge0TestRunner
             return null;
         }
 
-        if (is_bool($output)) {
+        // Already proper types
+        if (is_bool($output) || is_array($output) || is_int($output) || is_float($output)) {
             return $output;
         }
 
-        if (is_numeric($output) && !is_string($output)) {
-            return $output;
-        }
+        // Normalize string
+        $cleaned = trim((string)$output);
+        $lower = strtolower($cleaned);
 
-        if (is_array($output)) {
-            return $output;
-        }
+        // Python / JSON style booleans and nulls
+        if ($lower === 'true') return true;
+        if ($lower === 'false') return false;
+        if ($lower === 'none' || $lower === 'null') return null;
 
-        $cleaned = trim($output);
-        
-        if ($cleaned === 'True') {
-            return true;
-        }
-        if ($cleaned === 'False') {
-            return false;
-        }
-        
-        if ($cleaned === 'None') {
-            return null;
-        }
-        
-        if ($cleaned === 'null') {
-            return null;
-        }
-
-        $cleaned = str_replace("'", '"', $cleaned);
-        $decoded = json_decode($cleaned, true);
-        if (json_last_error() === JSON_ERROR_NONE) {
-            return $decoded;
-        }
-
+        // Numeric?
         if (is_numeric($cleaned)) {
-            return strpos($cleaned, '.') !== false ? (float) $cleaned : (int) $cleaned;
+            return strpos($cleaned, '.') !== false ? (float)$cleaned : (int)$cleaned;
         }
 
-        if (preg_match('/^["\'](.*)["\']\s*$/', $cleaned, $matches)) {
+        // Looks like JSON?
+        if (
+            ($cleaned[0] === '{' && substr($cleaned, -1) === '}') ||
+            ($cleaned[0] === '[' && substr($cleaned, -1) === ']')
+        ) {
+            $decoded = json_decode($cleaned, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return $decoded;
+            }
+        }
+
+        // Remove wrapping quotes
+        if (preg_match('/^["\'](.*)["\']$/', $cleaned, $matches)) {
             return $matches[1];
         }
 
         return $cleaned;
     }
+
 
     /**
      * Deep comparison of two values
