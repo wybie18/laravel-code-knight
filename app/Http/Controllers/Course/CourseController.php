@@ -262,6 +262,62 @@ class CourseController extends Controller
         }
     }
 
+    public function completion(Course $course)
+    {
+        $user = request()->user();
+
+        if (!$user->tokenCan('courses:view')) {
+            abort(403, 'Unauthorized. You do not have permission to complete courses.');
+        }
+
+        if (!$this->progressService->isUserEnrolled($user, $course)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You must be enrolled in this course to complete it.',
+            ], 403);
+        }
+
+        $allContent = $this->progressService->getAllCourseContentOrdered($course);
+        
+        if (empty($allContent)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This course has no content to complete.',
+            ], 422);
+        }
+
+        $statistics = $this->progressService->getCourseStatistics($user, $course);
+        
+        if ($statistics['progress_percentage'] !== 100) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You must complete all course content first.',
+                'statistics' => $statistics,
+            ], 422);
+        }
+
+        $this->progressService->updateCourseProgress($user, $course);
+        $this->progressService->markCourseCompleted($user, $course);
+
+        $completionStats = $this->progressService->getCourseCompletionStats($user, $course);
+
+        $course->load([
+            'difficulty',
+            'category',
+            'skillTags',
+            'programmingLanguage',
+            'userEnrollment',
+            'currentUserProgress'
+        ]);
+
+        return (new CourseResource($course))
+            ->additional([
+                'success' => true,
+                'message' => 'Congratulations! You have successfully completed the course.',
+                'completion_stats' => $completionStats,
+            ]);
+    }
+
     /**
      * Generate unique slug for course
      */
