@@ -7,11 +7,11 @@ use App\Models\CourseEnrollment;
 use App\Models\CourseModule;
 use App\Models\Lesson;
 use App\Models\User;
-use App\Models\UserActivity;
 use App\Models\UserActivityProgress;
 use App\Models\UserCourseProgress;
 use App\Models\UserLessonProgress;
 use App\Models\UserModuleProgress;
+use Illuminate\Support\Facades\DB;
 
 class CourseProgressService
 {
@@ -23,7 +23,7 @@ class CourseProgressService
 
     public function __construct(LevelService $levelService, UserActivityService $userActivityService)
     {
-        $this->levelService = $levelService;
+        $this->levelService        = $levelService;
         $this->userActivityService = $userActivityService;
     }
 
@@ -118,7 +118,7 @@ class CourseProgressService
         if ($progress && $progress->completed_at) {
             return;
         }
-        
+
         UserLessonProgress::firstOrCreate([
             'user_id'   => $user->id,
             'lesson_id' => $lesson->id,
@@ -143,7 +143,7 @@ class CourseProgressService
         $progress = UserActivityProgress::where('user_id', $user->id)
             ->where('activity_id', $activity->id)
             ->first();
-        
+
         if ($progress && $progress->is_completed) {
             return;
         }
@@ -200,9 +200,9 @@ class CourseProgressService
      */
     public function updateCourseProgress(User $user, Course $course): void
     {
-        $allContent = $this->getAllCourseContentOrdered($course);
+        $allContent   = $this->getAllCourseContentOrdered($course);
         $totalContent = count($allContent);
-        
+
         if ($totalContent === 0) {
             return;
         }
@@ -221,13 +221,13 @@ class CourseProgressService
             'course_id' => $course->id,
         ], [
             'progress_percentage' => $progressPercentage,
-            'completed_at'        => $progressPercentage === 100 ? now() : null,
+            'completed_at'        => $progressPercentage == 100 ? now() : null,
             'started_at'          => UserCourseProgress::where('user_id', $user->id)
                 ->where('course_id', $course->id)
                 ->value('started_at') ?? now(),
         ]);
 
-        if ($progressPercentage === 100) {
+        if ($progressPercentage == 100) {
             $this->markCourseCompleted($user, $course);
             $this->levelService->addXp($user, $course->exp_reward, "Completed Course: {$course->title}", $course);
         }
@@ -310,13 +310,13 @@ class CourseProgressService
                 : $nextContent['model']->type;
 
             return [
-                'type'    => $contentType,
-                'content' => [
+                'type'               => $contentType,
+                'content'            => [
                     'id'    => $nextContent['id'],
                     'slug'  => $nextContent['model']->slug,
                     'title' => $nextContent['model']->title,
                 ],
-                'module'  => [
+                'module'             => [
                     'id'    => $module->id,
                     'slug'  => $module->slug,
                     'title' => $module->title,
@@ -327,7 +327,7 @@ class CourseProgressService
 
         if ($currentIndex === count($allContent) - 1) {
             $isCourseComplete = $this->isCourseFullyCompleted($user, $course);
-            
+
             return [
                 'type'               => 'congratulations',
                 'is_course_complete' => $isCourseComplete,
@@ -467,13 +467,21 @@ class CourseProgressService
 
         $progressPercentage = $totalContent > 0 ? round(($completedContent / $totalContent) * 100) : 0;
 
+        $courseProgress = UserCourseProgress::where('user_id', $user->id)
+        ->where('course_id', $course->id)
+        ->first();
+    
+        $isCompleted = $courseProgress && 
+                   $courseProgress->completed_at !== null && 
+                   $progressPercentage == 100;
+
         return [
             'total_content'       => $totalContent,
             'completed_content'   => $completedContent,
             'total_lessons'       => $totalLessons,
             'total_activities'    => $totalActivities,
-            'progress_percentage' => $progressPercentage,
-            'is_completed'        => $progressPercentage === 100,
+            'progress_percentage' => (int) $progressPercentage,
+            'is_completed'        => $isCompleted,
         ];
     }
 
@@ -576,17 +584,109 @@ class CourseProgressService
     private function isCourseFullyCompleted(User $user, Course $course): bool
     {
         $allContent = $this->getAllCourseContentOrdered($course);
-        
+
         if (empty($allContent)) {
             return false;
         }
 
         foreach ($allContent as $content) {
-            if (!$this->isContentCompleted($user, $content)) {
+            if (! $this->isContentCompleted($user, $content)) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * Get detailed completion statistics for a completed course
+     */
+    public function getCourseCompletionStats(User $user, Course $course): array
+    {
+        // Get the course progress record
+        $courseProgress = UserCourseProgress::where('user_id', $user->id)
+            ->where('course_id', $course->id)
+            ->first();
+
+        // Get enrollment record
+        $enrollment = CourseEnrollment::where('user_id', $user->id)
+            ->where('course_id', $course->id)
+            ->first();
+
+        // Get all lessons in the course
+        $lessonIds = $course->modules()
+            ->with('lessons:id,course_module_id,exp_reward')
+            ->get()
+            ->pluck('lessons')
+            ->flatten()
+            ->pluck('id')
+            ->toArray();
+
+        // Get all activities in the course
+        $activityIds = $course->modules()
+            ->with('activities:id,course_module_id,exp_reward')
+            ->get()
+            ->pluck('activities')
+            ->flatten()
+            ->pluck('id')
+            ->toArray();
+
+        // Count completed lessons
+        $completedLessonsCount = UserLessonProgress::where('user_id', $user->id)
+            ->whereIn('lesson_id', $lessonIds)
+            ->count();
+
+        // Count completed activities
+        $completedActivitiesCount = UserActivityProgress::where('user_id', $user->id)
+            ->whereIn('activity_id', $activityIds)
+            ->where('is_completed', true)
+            ->count();
+
+        // Calculate total EXP earned from lessons
+        $lessonsExpEarned = $course->modules()
+            ->with(['lessons' => function ($query) use ($user) {
+                $query->select('lessons.id', 'lessons.course_module_id', 'lessons.exp_reward')
+                    ->whereExists(function ($subQuery) use ($user) {
+                        $subQuery->select(DB::raw(1))
+                            ->from('user_lesson_progress')
+                            ->whereColumn('user_lesson_progress.lesson_id', 'lessons.id')
+                            ->where('user_lesson_progress.user_id', $user->id);
+                    });
+            }])
+            ->get()
+            ->pluck('lessons')
+            ->flatten()
+            ->sum('exp_reward');
+
+        $activitiesExpEarned = $course->modules()
+            ->with(['activities' => function ($query) use ($user) {
+                $query->select('activities.id', 'activities.course_module_id', 'activities.exp_reward')
+                    ->whereExists(function ($subQuery) use ($user) {
+                        $subQuery->select(DB::raw(1))
+                            ->from('user_activity_progress')
+                            ->whereColumn('user_activity_progress.activity_id', 'activities.id')
+                            ->where('user_activity_progress.user_id', $user->id)
+                            ->where('user_activity_progress.is_completed', true);
+                    });
+            }])
+            ->get()
+            ->pluck('activities')
+            ->flatten()
+            ->sum('exp_reward');
+
+        $totalExpEarned = $lessonsExpEarned + $activitiesExpEarned;
+
+        if ($courseProgress && $courseProgress->progress_percentage === 100) {
+            $totalExpEarned += $course->exp_reward ?? 0;
+        }
+
+        return [
+            'started_at'                 => $courseProgress?->started_at,
+            'completed_at'               => $courseProgress?->completed_at ?? now(),
+            'total_exp_earned'           => (int) $totalExpEarned,
+            'total_lessons_completed'    => (int) $completedLessonsCount,
+            'total_activities_completed' => (int) $completedActivitiesCount,
+            'completion_percentage'      => (int) ($courseProgress?->progress_percentage ?? 100),
+        ];
     }
 }
