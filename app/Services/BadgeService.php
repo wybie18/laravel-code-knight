@@ -2,6 +2,9 @@
 namespace App\Services;
 
 use App\Models\Badge;
+use App\Models\CodingChallenge;
+use App\Models\CtfChallenge;
+use App\Models\TypingChallenge;
 use App\Models\User;
 use App\Models\UserBadge;
 use Illuminate\Support\Collection;
@@ -92,34 +95,66 @@ class BadgeService
         // Handle different requirement types
         switch ($key) {
             case 'level':
-                return $user->level >= $value;
+                return $user->current_level >= $value;
 
             case 'exp':
-                return $user->exp >= $value;
+            case 'total_xp':
+                return $user->total_xp >= $value;
 
-            case 'posts_count':
-                return $user->posts()->count() >= $value;
+            case 'top_percentage':
+                return false;
+            
+            case 'completed_courses':
+                return $user->courseEnrollments()
+                    ->whereNotNull('completed_at')
+                    ->count() >= $value;
 
-            case 'comments_count':
-                return $user->comments()->count() >= $value;
+            case 'completed_lessons':
+                return $user->lessonProgress()->count() >= $value;
+            
+            case 'completed_activities':
+                return $user->activityProgress()
+                    ->where('is_completed', true)
+                    ->count() >= $value;
 
-            case 'likes_received':
-                return $user->receivedLikes()->count() >= $value;
-
-            case 'followers_count':
-                return $user->followers()->count() >= $value;
-
-            case 'badges_count':
-                return $user->badges()->count() >= $value;
+            case 'coding_challenges_solved':
+                return $user->challengeSubmissions()
+                    ->where('is_correct', true)
+                    ->whereHas('challenge', function ($query) {
+                        $query->where('challengeable_type', CodingChallenge::class);
+                    })
+                    ->distinct()
+                    ->count('challenge_id') >= $value;
+            
+            case 'ctf_challenges_solved':
+                return $user->challengeSubmissions()
+                    ->where('is_correct', true)
+                    ->whereHas('challenge', function ($query) {
+                        $query->where('challengeable_type', CtfChallenge::class);
+                    })
+                    ->distinct()
+                    ->count('challenge_id') >= $value;
+            
+            case 'typeing_tests_completed':
+                return $user->challengeSubmissions()
+                    ->where('is_correct', true)
+                    ->whereHas('challenge', function ($query) {
+                        $query->where('challengeable_type', TypingChallenge::class);
+                    })
+                    ->distinct()
+                    ->count('challenge_id') >= $value;
+            
+            case 'total_challenges_solved':
+                return $user->challengeSubmissions()
+                    ->where('is_correct', true)
+                    ->distinct()
+                    ->count('challenge_id') >= $value;
 
             case 'achievements_count':
                 return $user->achievements()->count() >= $value;
 
-            case 'has_badge':
-                return $user->badges()->where('slug', $value)->exists();
-
-            case 'has_achievement':
-                return $user->achievements()->where('slug', $value)->exists();
+            case 'badges_count':
+                return $user->badges()->count() >= $value;
 
             case 'account_age_days':
                 return $user->created_at->diffInDays(now()) >= $value;
@@ -181,35 +216,69 @@ class BadgeService
     {
         switch ($key) {
             case 'level':
-                return $user->level ?? 0;
+                return $user->current_level ?? 0;
 
             case 'exp':
-                return $user->exp ?? 0;
+            case 'total_xp':
+                return $user->total_xp ?? 0;
 
-            case 'posts_count':
-                return $user->posts()->count();
+            case 'top_percentage':
+                return false;
+            
+            case 'completed_courses':
+                return $user->courseEnrollments()
+                    ->whereNotNull('completed_at')
+                    ->count() ?? 0;
 
-            case 'comments_count':
-                return $user->comments()->count();
+            case 'completed_lessons':
+                return $user->lessonProgress()->count() ?? 0;
+            
+            case 'completed_activities':
+                return $user->activityProgress()
+                    ->where('is_completed', true)
+                    ->count() ?? 0;
 
-            case 'likes_received':
-                return $user->receivedLikes()->count();
-
-            case 'followers_count':
-                return $user->followers()->count();
-
-            case 'badges_count':
-                return $user->badges()->count();
+            case 'coding_challenges_solved':
+                return $user->challengeSubmissions()
+                    ->where('is_correct', true)
+                    ->whereHas('challenge', function ($query) {
+                        $query->where('challengeable_type', CodingChallenge::class);
+                    })
+                    ->distinct()
+                    ->count('challenge_id') ?? 0;
+            
+            case 'ctf_challenges_solved':
+                return $user->challengeSubmissions()
+                    ->where('is_correct', true)
+                    ->whereHas('challenge', function ($query) {
+                        $query->where('challengeable_type', CtfChallenge::class);
+                    })
+                    ->distinct()
+                    ->count('challenge_id') ?? 0;
+            
+            case 'typeing_tests_completed':
+                return $user->challengeSubmissions()
+                    ->where('is_correct', true)
+                    ->whereHas('challenge', function ($query) {
+                        $query->where('challengeable_type', TypingChallenge::class);
+                    })
+                    ->distinct()
+                    ->count('challenge_id') ?? 0;
+            
+            case 'total_challenges_solved':
+                return $user->challengeSubmissions()
+                    ->where('is_correct', true)
+                    ->distinct()
+                    ->count('challenge_id') ?? 0;
 
             case 'achievements_count':
-                return $user->achievements()->count();
+                return $user->achievements()->count() ?? 0;
 
-            case 'has_badge':
-            case 'has_achievement':
-                return 1; // Boolean check
+            case 'badges_count':
+                return $user->badges()->count() ?? 0;
 
             case 'account_age_days':
-                return $user->created_at->diffInDays(now());
+                return $user->created_at->diffInDays(now()) ?? 0;
 
             default:
                 return $user->$key ?? 0;
@@ -261,7 +330,6 @@ class BadgeService
                 return false;
             }
 
-            // Remove EXP if it was awarded
             if ($badge->exp_reward > 0) {
                 $user->decrement('exp', $badge->exp_reward);
             }
