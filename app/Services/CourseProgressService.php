@@ -137,7 +137,6 @@ class CourseProgressService
      */
     public function markActivityCompleted(User $user, Activity $activity): void
     {
-        $this->userActivityService->logActivity($user, "activity_completion", $activity);
         $this->enrollUserInCourse($user, $activity->module->course);
 
         $progress = UserActivityProgress::where('user_id', $user->id)
@@ -156,7 +155,8 @@ class CourseProgressService
             'completed_at' => now(),
         ]);
 
-        $this->levelService->addXp($user, $activity->exp_reward, "Completed Activity: {$activity->title}", $activity);
+        $description = "Completed Quiz: {$activity->title}";
+        $this->levelService->addXp($user, $activity->exp_reward, $description, $activity);
 
         $this->updateModuleProgress($user, $activity->module);
         $this->updateCourseProgress($user, $activity->module->course);
