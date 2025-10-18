@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class LevelService
 {
@@ -96,7 +97,7 @@ class LevelService
         $xpNeededForNextLevel     = $xpForNextLevel - $xpForCurrentLevel;
         $xpProgressInCurrentLevel = $totalXp - $xpForCurrentLevel;
         $progressPercentage       = $xpNeededForNextLevel > 0
-            ? round(($xpProgressInCurrentLevel / $xpNeededForNextLevel) * 100, 2)
+            ? round(($totalXp / $xpForNextLevel) * 100, 2)
             : 100;
 
         $milestone     = $this->getLevelMilestone($currentLevel);
@@ -138,7 +139,7 @@ class LevelService
         return [
             'level_number' => $milestone->level_number,
             'name'         => $milestone->name,
-            'icon'         => $milestone->icon,
+            'icon'         => $milestone->icon ? url(Storage::url($milestone->icon)) : '',
             'description'  => $milestone->description,
         ];
     }
@@ -165,7 +166,7 @@ class LevelService
         return [
             'level_number' => $nextMilestone->level_number,
             'name'         => $nextMilestone->name,
-            'icon'         => $nextMilestone->icon,
+            'icon'         => $nextMilestone->icon ? url(Storage::url($nextMilestone->icon)) : '',
             'description'  => $nextMilestone->description,
             'xp_required'  => $this->calculateXpForLevel($nextMilestone->level_number),
         ];
