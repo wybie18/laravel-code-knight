@@ -22,7 +22,7 @@ class UserResource extends JsonResource
             'username'   => $this->username,
             'email'      => $this->email,
             'avatar'     => $this->avatar ? url(Storage::url($this->avatar)) : '',
-            'role'       => new UserRoleResource($this->whenLoaded('role')),
+            'role'       => $this->whenLoaded('role', fn() => $this->role->name),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
