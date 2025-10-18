@@ -296,9 +296,6 @@ class CourseController extends Controller
             ], 422);
         }
 
-        $this->progressService->updateCourseProgress($user, $course);
-        $this->progressService->markCourseCompleted($user, $course);
-
         $completionStats = $this->progressService->getCourseCompletionStats($user, $course);
 
         $course->load([
