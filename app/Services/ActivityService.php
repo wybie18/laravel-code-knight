@@ -122,11 +122,7 @@ class ActivityService
             if (! $previousSubmission) {
                 $this->progressService->markActivityCompleted($user, $activity);
             }
-
-            if ($firstPerfectScore && $activity->exp_reward > 0) {
-                $description = "Completed Quiz: {$activity->title}";
-                $this->levelService->addXp($user, $activity->exp_reward, $description, $activity);
-            }
+            
             $this->userActivityService->logActivity($user, "quiz_activity_submission", $activity);
 
             return [
