@@ -2,7 +2,9 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Level;
 use App\Models\User;
+use App\Services\LevelService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -162,9 +164,10 @@ class AuthController extends Controller
 
     private function getUserStats(User $user)
     {
+        $levelService = app(LevelService::class);
+        $levelInfo = $levelService->getUserLevelInfo($user);
         return [
-            'total_xp'              => $user->total_xp,
-            'current_level'         => $user->current_level,
+            'level'                 => $levelInfo,
             'courses_enrolled'      => $user->courseEnrollments()->count(),
             'courses_completed'     => $user->courseProgress()->whereNotNull('completed_at')->count(),
             'activities_completed'  => $user->activityProgress()->whereNotNull('completed_at')->count(),
@@ -174,6 +177,7 @@ class AuthController extends Controller
             'longest_streak'        => $user->streaks()->latest()->first()->longest_streak ?? 0,
             'total_submissions'     => $user->activitySubmissions()->count(),
             'challenge_submissions' => $user->challengeSubmissions()->count(),
+            'challenges_completed'  => $user->challengeSubmissions()->where('is_correct', true)->distinct('challenge_id')->count(),
         ];
     }
 }
