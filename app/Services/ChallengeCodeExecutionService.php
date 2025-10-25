@@ -56,6 +56,7 @@ class ChallengeCodeExecutionService
         if ($allTestsPassed && ! $alreadySolved) {
             $description = "Solved Coding Challenge: {$challenge->title}";
             $this->levelService->addXp($user, $challenge->points, $description, $challenge);
+            app(AchievementService::class)->checkAndAwardAchievements($user);
         }
 
         $this->userActivityService->logActivity($user, "code_challenge_submission", $challenge);
