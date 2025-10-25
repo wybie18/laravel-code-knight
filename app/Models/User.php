@@ -48,7 +48,10 @@ class User extends Authenticatable
 
     public function achievements()
     {
-        return $this->hasMany(UserAchievement::class);
+        return $this->belongsToMany(Achievement::class, 'user_achievements')
+            ->with('type')
+            ->withPivot('earned_at')
+            ->withTimestamps();
     }
 
     public function badges()
