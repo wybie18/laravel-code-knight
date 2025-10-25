@@ -11,6 +11,7 @@ use App\Http\Controllers\SkillTagController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/student/courses/my-progress', [CourseController::class, 'myCoursesWithProgress']);
     Route::apiResource('courses', CourseController::class)->except(['index']);
     Route::get('courses/{course}/completion', [CourseController::class, 'completion']);
     Route::post('courses/store/content', [CourseWithContentController::class, 'storeWithContent']);
