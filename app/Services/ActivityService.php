@@ -39,8 +39,8 @@ class ActivityService
         if ($allTestsPassed && ! $alreadySolved) {
             $this->progressService->markActivityCompleted($user, $activity);
             $description = "Completed Coding Activity: {$activity->title}";
+            $this->levelService->addXp($user, $activity->exp_reward, $description, $activity);
         }
-        $this->levelService->addXp($user, $activity->exp_reward, $description, $activity);
         $this->userActivityService->logActivity($user, "code_activity_submission", $activity);
 
         return $results;
