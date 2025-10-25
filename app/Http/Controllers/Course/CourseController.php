@@ -316,6 +316,84 @@ class CourseController extends Controller
     }
 
     /**
+     * Get user's enrolled courses with progress
+     */
+    public function myCoursesWithProgress(Request $request)
+    {
+        $validated = $request->validate([
+            'per_page' => 'sometimes|integer|min:1|max:100',
+            'limit'    => 'sometimes|integer|min:1|max:100',
+            'status'   => 'sometimes|in:all,completed,in_progress,not_started',
+        ]);
+
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authentication required.',
+            ], 401);
+        }
+
+        $query = Course::whereHas('enrollments', function ($q) use ($user) {
+            $q->where('user_id', $user->id);
+        });
+
+        if ($request->filled('status')) {
+            $status = $request->input('status');
+            
+            switch ($status) {
+                case 'completed':
+                    $query->whereHas('userProgress', function ($q) use ($user) {
+                        $q->where('user_id', $user->id)
+                            ->whereNotNull('completed_at');
+                    });
+                    break;
+                    
+                case 'in_progress':
+                    $query->whereHas('userProgress', function ($q) use ($user) {
+                        $q->where('user_id', $user->id)
+                            ->whereNull('completed_at')
+                            ->where('progress_percentage', '>', 0);
+                    });
+                    break;
+                    
+                case 'not_started':
+                    $query->whereHas('userProgress', function ($q) use ($user) {
+                        $q->where('user_id', $user->id)
+                            ->where('progress_percentage', 0);
+                    })->orWhereDoesntHave('userProgress');
+                    break;
+            }
+        }
+
+        $query->with([
+            'difficulty',
+            'category',
+            'skillTags',
+            'programmingLanguage',
+            'userEnrollment',
+            'currentUserProgress'
+        ])->withCount(['modules', 'enrollments']);
+
+        if ($request->filled('limit')) {
+            $courses = $query->limit($request->input('limit'))->get();
+            
+            return CourseResource::collection($courses)->additional([
+                'success' => true,
+                'total' => $courses->count(),
+            ]);
+        }
+
+        $perPage = $request->input('per_page', 15);
+        $courses = $query->paginate($perPage);
+
+        return CourseResource::collection($courses)->additional([
+            'success' => true,
+        ]);
+    }
+
+    /**
      * Generate unique slug for course
      */
     private function generateUniqueSlug(string $title, ?int $excludeId = null): string
