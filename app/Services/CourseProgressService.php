@@ -127,7 +127,7 @@ class CourseProgressService
         ]);
 
         $this->levelService->addXp($user, $lesson->exp_reward, "Completed Lesson: {$lesson->title}", $lesson);
-
+        app(AchievementService::class)->checkAndAwardAchievements($user);
         $this->updateModuleProgress($user, $lesson->module);
         $this->updateCourseProgress($user, $lesson->module->course);
     }
@@ -157,6 +157,7 @@ class CourseProgressService
 
         $description = "Completed Quiz: {$activity->title}";
         $this->levelService->addXp($user, $activity->exp_reward, $description, $activity);
+        app(AchievementService::class)->checkAndAwardAchievements($user);
 
         $this->updateModuleProgress($user, $activity->module);
         $this->updateCourseProgress($user, $activity->module->course);
@@ -230,6 +231,7 @@ class CourseProgressService
         if ($progressPercentage == 100) {
             $this->markCourseCompleted($user, $course);
             $this->levelService->addXp($user, $course->exp_reward, "Completed Course: {$course->title}", $course);
+            app(AchievementService::class)->checkAndAwardAchievements($user);
         }
     }
 
