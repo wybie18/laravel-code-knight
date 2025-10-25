@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Challenge;
 use App\Models\ChallengeSubmission;
 use App\Models\CtfChallenge;
+use App\Services\AchievementService;
 use App\Services\LevelService;
 use App\Services\UserActivityService;
 use Illuminate\Http\Request;
@@ -49,6 +50,7 @@ class CtfSubmissionController extends Controller
         if ($isCorrect) {
             $description = "Solved CTF Challenge: {$challenge->title}";
             $this->levelService->addXp($user, $challenge->points, $description, $challenge);
+            app(AchievementService::class)->checkAndAwardAchievements($user);
             return response()->json(['success' => true, 'message' => 'Correct flag! Challenge solved.'], 200);
         }
 
