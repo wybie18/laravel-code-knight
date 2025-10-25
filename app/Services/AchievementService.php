@@ -1,15 +1,15 @@
 <?php
-
 namespace App\Services;
 
+use App\Events\AchievementEarned;
 use App\Models\Achievement;
 use App\Models\CodingChallenge;
 use App\Models\CtfChallenge;
 use App\Models\TypingChallenge;
 use App\Models\User;
 use App\Models\UserAchievement;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class AchievementService
 {
@@ -18,7 +18,7 @@ class AchievementService
      */
     public function hasAchievement(User $user, Achievement $achievement): bool
     {
-        return $user->achievements()->where('achievement_id', $achievement->id)->exists();
+        return $user->achievements()->where('achievements.id', $achievement->id)->exists();
     }
 
     /**
@@ -31,16 +31,14 @@ class AchievementService
         }
 
         return DB::transaction(function () use ($user, $achievement) {
-            $userAchievement = UserAchievement::create([
-                'user_id' => $user->id,
-                'achievement_id' => $achievement->id,
-                'earned_at' => now(),
-            ]);
+            $userAchievement = $user->achievements()->attach($achievement->id, ['earned_at' => now()]);
 
-            // Award EXP if available
             if ($achievement->exp_reward > 0) {
-                $user->increment('exp', $achievement->exp_reward);
+                $description = "Achievement xp reward for " . $achievement->title;
+                app(LevelService::class)->addXp($user, $achievement->exp_reward, $description, $achievement);
             }
+
+            event(new AchievementEarned($user, $achievement));
 
             return $userAchievement;
         });
@@ -51,7 +49,7 @@ class AchievementService
      */
     public function checkAndAwardAchievements(User $user): Collection
     {
-        $awarded = collect();
+        $awarded      = collect();
         $achievements = Achievement::with('type')->get();
 
         foreach ($achievements as $achievement) {
@@ -80,7 +78,7 @@ class AchievementService
         }
 
         foreach ($achievement->requirements as $key => $value) {
-            if (!$this->checkRequirement($user, $key, $value)) {
+            if (! $this->checkRequirement($user, $key, $value)) {
                 return false;
             }
         }
@@ -96,24 +94,24 @@ class AchievementService
         switch ($key) {
             case 'level':
                 return $user->current_level >= $value;
-            
+
             case 'exp':
             case 'total_xp':
                 return $user->total_xp >= $value;
-            
+
             case 'completed_courses':
                 return $user->courseEnrollments()
                     ->whereNotNull('completed_at')
                     ->count() >= $value;
-            
+
             case 'completed_lessons':
                 return $user->lessonProgress()->count() >= $value;
-            
+
             case 'completed_activities':
                 return $user->activityProgress()
                     ->where('is_completed', true)
                     ->count() >= $value;
-            
+
             case 'coding_challenges_solved':
                 return $user->challengeSubmissions()
                     ->where('is_correct', true)
@@ -122,7 +120,7 @@ class AchievementService
                     })
                     ->distinct()
                     ->count('challenge_id') >= $value;
-            
+
             case 'ctf_challenges_solved':
                 return $user->challengeSubmissions()
                     ->where('is_correct', true)
@@ -131,7 +129,7 @@ class AchievementService
                     })
                     ->distinct()
                     ->count('challenge_id') >= $value;
-            
+
             case 'typeing_tests_completed':
                 return $user->challengeSubmissions()
                     ->where('is_correct', true)
@@ -140,19 +138,19 @@ class AchievementService
                     })
                     ->distinct()
                     ->count('challenge_id') >= $value;
-            
+
             case 'total_challenges_solved':
                 return $user->challengeSubmissions()
                     ->where('is_correct', true)
                     ->distinct()
                     ->count('challenge_id') >= $value;
-    
+
             case 'badges_count':
                 return $user->badges()->count() >= $value;
-            
+
             case 'achievements_count':
                 return $user->achievements()->count() >= $value;
-            
+
             case 'has_badge':
                 return $user->badges()
                     ->where(function ($query) use ($value) {
@@ -162,7 +160,7 @@ class AchievementService
                             });
                     })
                     ->exists();
-                
+
             case 'has_achievement':
                 return $user->achievements()
                     ->where(function ($query) use ($value) {
@@ -172,22 +170,22 @@ class AchievementService
                             });
                     })
                     ->exists();
-            
+
             case 'user_activity':
                 return app(UserActivityService::class)
                     ->wasActiveToday($user);
-            
+
             case 'consecutive_days_active':
                 return app(UserActivityService::class)
                     ->getCurrentStreak($user) >= $value;
-            
+
             case 'longest_streak':
                 return app(UserActivityService::class)
                     ->getLongestStreak($user) >= $value;
 
             case 'account_age_days':
                 return $user->created_at->diffInDays(now()) >= $value;
-            
+
             default:
                 if (isset($user->$key)) {
                     return $user->$key >= $value;
@@ -202,14 +200,14 @@ class AchievementService
     public function getUserAchievementsWithProgress(User $user): Collection
     {
         return Achievement::with('type')->get()->map(function ($achievement) use ($user) {
-            $earned = $this->hasAchievement($user, $achievement);
+            $earned   = $this->hasAchievement($user, $achievement);
             $progress = $this->calculateProgress($user, $achievement);
 
             return [
-                'achievement' => $achievement,
-                'earned' => $earned,
-                'earned_at' => $earned ? $user->achievements()->where('achievement_id', $achievement->id)->first()->pivot->created_at : null,
-                'progress' => $progress,
+                'achievement'         => $achievement,
+                'earned'              => $earned,
+                'earned_at'           => $earned ? $user->achievements()->where('achievement_id', $achievement->id)->first()->pivot->created_at : null,
+                'progress'            => $progress,
                 'progress_percentage' => $this->calculateProgressPercentage($progress),
             ];
         });
@@ -227,10 +225,10 @@ class AchievementService
         }
 
         foreach ($achievement->requirements as $key => $required) {
-            $current = $this->getCurrentValue($user, $key);
+            $current        = $this->getCurrentValue($user, $key);
             $progress[$key] = [
-                'current' => $current,
-                'required' => $required,
+                'current'   => $current,
+                'required'  => $required,
                 'completed' => $current >= $required,
             ];
         }
@@ -246,24 +244,24 @@ class AchievementService
         switch ($key) {
             case 'level':
                 return $user->current_level ?? 0;
-            
+
             case 'exp':
             case 'total_xp':
                 return $user->total_xp ?? 0;
-            
+
             case 'completed_courses':
                 return $user->courseEnrollments()
                     ->whereNotNull('completed_at')
                     ->count();
-            
+
             case 'completed_lessons':
                 return $user->lessonProgress()->count();
-            
+
             case 'completed_activities':
                 return $user->activityProgress()
                     ->where('is_completed', true)
                     ->count();
-            
+
             case 'coding_challenges_solved':
                 return $user->challengeSubmissions()
                     ->where('is_correct', true)
@@ -272,7 +270,7 @@ class AchievementService
                     })
                     ->distinct()
                     ->count('challenge_id');
-            
+
             case 'ctf_challenges_solved':
                 return $user->challengeSubmissions()
                     ->where('is_correct', true)
@@ -281,7 +279,7 @@ class AchievementService
                     })
                     ->distinct()
                     ->count('challenge_id');
-            
+
             case 'typeing_tests_completed':
                 return $user->challengeSubmissions()
                     ->where('is_correct', true)
@@ -290,56 +288,56 @@ class AchievementService
                     })
                     ->distinct()
                     ->count('challenge_id');
-            
+
             case 'total_challenges_solved':
                 return $user->challengeSubmissions()
                     ->where('is_correct', true)
                     ->distinct()
                     ->count('challenge_id');
-            
+
             case 'badges_count':
                 return $user->badges()->count();
-            
+
             case 'achievements_count':
                 return $user->achievements()->count();
-            
+
             case 'consecutive_days_active':
                 return app(UserActivityService::class)
                     ->getCurrentStreak($user);
-            
+
             case 'longest_streak':
                 return app(UserActivityService::class)
                     ->getLongestStreak($user);
-            
+
             case 'account_age_days':
                 return $user->created_at->diffInDays(now());
-            
+
             case 'enrolled_courses':
                 return $user->courseEnrollments()->count();
-            
+
             case 'active_courses':
                 return $user->courseEnrollments()
                     ->where('status', 'active')
                     ->count();
-            
+
             case 'modules_completed':
                 return $user->moduleProgress()
                     ->whereNotNull('completed_at')
                     ->count();
-            
+
             case 'exp_transactions':
                 return $user->expTransactions()->count();
-            
+
             case 'total_submissions':
                 return $user->challengeSubmissions()->count();
-            
+
             case 'user_activity':
                 return app(UserActivityService::class)->wasActiveToday($user) ? 1 : 0;
-            
+
             case 'has_badge':
             case 'has_achievement':
                 return 1; // Boolean check - will be compared in checkRequirement
-            
+
             default:
                 return $user->$key ?? 0;
         }
@@ -354,7 +352,7 @@ class AchievementService
             return 0;
         }
 
-        $total = count($progress);
+        $total     = count($progress);
         $completed = collect($progress)->where('completed', true)->count();
 
         return round(($completed / $total) * 100, 2);
@@ -371,9 +369,17 @@ class AchievementService
     /**
      * Get user's earned achievements
      */
-    public function getUserAchievements(User $user): Collection
+    public function getUserAchievements(User $user, ?int $limit = null): Collection
     {
-        return $user->achievements()->with('type')->get();
+        $query = $user->achievements()
+            ->with('type')
+            ->orderByDesc('user_achievements.earned_at');
+
+        if ($limit !== null && $limit > 0) {
+            $query->limit($limit);
+        }
+
+        return $query->get();
     }
 
     /**
@@ -382,11 +388,7 @@ class AchievementService
     public function revokeAchievement(User $user, Achievement $achievement): bool
     {
         return DB::transaction(function () use ($user, $achievement) {
-            $userAchievement = UserAchievement::where('user_id', $user->id)
-                ->where('achievement_id', $achievement->id)
-                ->first();
-
-            if (!$userAchievement) {
+            if (! $user->achievements()->where('achievements.id', $achievement->id)->exists()) {
                 return false;
             }
 
@@ -395,7 +397,7 @@ class AchievementService
                 $user->decrement('exp', $achievement->exp_reward);
             }
 
-            $userAchievement->delete();
+            $user->achievements()->detach($achievement->id);
             return true;
         });
     }
@@ -405,9 +407,9 @@ class AchievementService
      */
     public function getUserAchievementStats(User $user): array
     {
-        $totalAchievements = Achievement::count();
+        $totalAchievements  = Achievement::count();
         $earnedAchievements = $user->achievements()->count();
-        $typeStats = DB::table('user_achievements')
+        $typeStats          = DB::table('user_achievements')
             ->join('achievements', 'user_achievements.achievement_id', '=', 'achievements.id')
             ->join('achievement_types', 'achievements.type_id', '=', 'achievement_types.id')
             ->where('user_achievements.user_id', $user->id)
@@ -416,10 +418,10 @@ class AchievementService
             ->get();
 
         return [
-            'total_achievements' => $totalAchievements,
-            'earned_achievements' => $earnedAchievements,
+            'total_achievements'    => $totalAchievements,
+            'earned_achievements'   => $earnedAchievements,
             'completion_percentage' => $totalAchievements > 0 ? round(($earnedAchievements / $totalAchievements) * 100, 2) : 0,
-            'type_stats' => $typeStats,
+            'type_stats'            => $typeStats,
         ];
     }
 
@@ -439,8 +441,8 @@ class AchievementService
      */
     public function getNextAchievementToUnlock(User $user): ?array
     {
-        $achievements = Achievement::all();
-        $closest = null;
+        $achievements      = Achievement::all();
+        $closest           = null;
         $closestPercentage = 0;
 
         foreach ($achievements as $achievement) {
@@ -448,14 +450,14 @@ class AchievementService
                 continue;
             }
 
-            $progress = $this->calculateProgress($user, $achievement);
+            $progress   = $this->calculateProgress($user, $achievement);
             $percentage = $this->calculateProgressPercentage($progress);
 
             if ($percentage > $closestPercentage) {
                 $closestPercentage = $percentage;
-                $closest = [
-                    'achievement' => $achievement,
-                    'progress' => $progress,
+                $closest           = [
+                    'achievement'         => $achievement,
+                    'progress'            => $progress,
                     'progress_percentage' => $percentage,
                 ];
             }
