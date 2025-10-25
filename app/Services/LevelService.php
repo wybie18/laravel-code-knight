@@ -189,6 +189,7 @@ class LevelService
         if ($leveledUp) {
             $user->current_level = $newLevel;
             $user->save();
+            app(AchievementService::class)->checkAndAwardAchievements($user);
         }
 
         $levelInfo = $this->getUserLevelInfo($user);
@@ -294,9 +295,11 @@ class LevelService
      * @param User $user
      * @return int
      */
-    public function getUserRank(User $user): int
+    public function getUserRankData(User $user): array
     {
-        return User::where('role_id', '!=', 1)
+        $totalUsers = User::where('role_id', '!=', 1)->count();
+
+        $rank = User::where('role_id', '!=', 1)
             ->where(function ($query) use ($user) {
                 $query->where('current_level', '>', $user->current_level)
                     ->orWhere(function ($q) use ($user) {
@@ -305,6 +308,17 @@ class LevelService
                     });
             })
             ->count() + 1;
+
+        // Avoid division by zero
+        $topPercentage = $totalUsers > 0
+            ? round((($totalUsers - $rank + 1) / $totalUsers) * 100, 2)
+            : 0;
+
+        return [
+            'rank'           => $rank,
+            'total_users'    => $totalUsers,
+            'top_percentage' => $topPercentage,
+        ];
     }
 
     /**
