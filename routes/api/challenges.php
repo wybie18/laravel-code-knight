@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Challenge\ChallengeCodeExecutionController;
+use App\Http\Controllers\Challenge\ChallengeController;
 use App\Http\Controllers\Challenge\CodingChallengeController;
 use App\Http\Controllers\Challenge\CtfChallengeController;
 use App\Http\Controllers\Challenge\CtfSubmissionController;
@@ -35,4 +36,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('challenges/typing/{typing}', [TypingChallengeController::class, 'show']);
     Route::post('challenges/typing/{typing}/submit', [TypingSubmissionController::class, 'store']);
     Route::get('challenges/typing/{typing}/submissions', [TypingSubmissionController::class, 'getSubmissionHistory']);
+
+    Route::get('challenges/solved', [ChallengeController::class, 'mySolvedChallenges']);
 });
