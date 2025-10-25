@@ -1,9 +1,11 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Services\AchievementService;
 use App\Services\LevelService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class UserStatsController extends Controller
 {
@@ -28,4 +30,41 @@ class UserStatsController extends Controller
             'challenges_completed'  => $user->challengeSubmissions()->where('is_correct', true)->distinct('challenge_id')->count(),
         ];
     }
+
+    public function getUserRank()
+    {
+        $user = Auth::user();
+        $levelService = app(LevelService::class);
+        $rankData = $levelService->getUserRankData($user);
+
+        return [
+            'rank'           => $rankData['rank'],
+            'total_users'    => $rankData['total_users'],
+            'top_percentage' => $rankData['top_percentage'],
+        ];
+    }
+
+    public function getUserAchievements(Request $request)
+    {
+        $validated = $request->validate([
+            'limit' => 'sometimes|integer|min:1|max:100',
+        ]);
+
+        $user = Auth::user();
+
+        $achievements = app(AchievementService::class)
+            ->getUserAchievements($user, $validated['limit'] ?? null);
+
+        return $achievements->map(function ($achievement) {
+            return [
+                'id'          => $achievement->id,
+                'name'        => $achievement->name,
+                'description' => $achievement->description,
+                'icon'        => $achievement->icon ? url(Storage::url($achievement->icon)) : '',
+                'exp_reward'  => $achievement->exp_reward,
+                'type'        => $achievement->type?->name,
+            ];
+        });
+    }
+
 }
