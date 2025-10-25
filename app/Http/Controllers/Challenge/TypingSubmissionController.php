@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Challenge;
 use App\Models\ChallengeSubmission;
 use App\Models\TypingChallenge;
+use App\Services\AchievementService;
 use App\Services\LevelService;
 use App\Services\UserActivityService;
 use Illuminate\Http\Request;
@@ -87,6 +88,7 @@ class TypingSubmissionController extends Controller
         if ($isCorrect) {
             $description = "Completed Typing Challenge: {$challenge->title}";
             $this->levelService->addXp($user, $challenge->points, $description, $challenge);
+            app(AchievementService::class)->checkAndAwardAchievements($user);
             return response()->json(['success' => true, 'message' => 'Challenge completed! All targets achieved.'], 200);
         }
 
