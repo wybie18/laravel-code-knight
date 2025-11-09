@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\AchievementResource;
 use App\Models\Achievement;
 use App\Models\AchievementType;
+use App\Services\AchievementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -11,6 +12,12 @@ use Illuminate\Validation\Rule;
 
 class AchievementController extends Controller
 {
+    protected $achievementService;
+
+    public function __construct(AchievementService $achievementService)
+    {
+        $this->achievementService = $achievementService;
+    }
     /**
      * Display a listing of the resource.
      */
@@ -182,5 +189,75 @@ class AchievementController extends Controller
         $achievement->delete();
 
         return response()->json(null, 204);
+    }
+
+    /**
+     * Get all achievements with user's progress
+     * This returns all achievements and shows which ones the user has earned
+     * and their progress towards unearned ones.
+     */
+    public function myAchievementsWithProgress(Request $request)
+    {
+        $user = $request->user();
+        
+        $achievementsWithProgress = $this->achievementService->getUserAchievementsWithProgress($user);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'achievements' => $achievementsWithProgress,
+                'stats' => $this->achievementService->getUserAchievementStats($user),
+            ]
+        ]);
+    }
+
+    /**
+     * Get user's achievement statistics
+     */
+    public function myAchievementStats(Request $request)
+    {
+        $user = $request->user();
+        $stats = $this->achievementService->getUserAchievementStats($user);
+
+        return response()->json([
+            'success' => true,
+            'data' => $stats
+        ]);
+    }
+
+    /**
+     * Get next achievement to unlock (for motivation)
+     */
+    public function nextToUnlock(Request $request)
+    {
+        $user = $request->user();
+        $nextAchievement = $this->achievementService->getNextAchievementToUnlock($user);
+
+        return response()->json([
+            'success' => true,
+            'data' => $nextAchievement
+        ]);
+    }
+
+    /**
+     * Get recently earned achievements
+     */
+    public function recentlyEarned(Request $request)
+    {
+        $request->validate([
+            'limit' => 'nullable|integer|min:1|max:20'
+        ]);
+
+        $user = $request->user();
+        $limit = $request->input('limit', 5);
+        
+        $recentAchievements = $this->achievementService->getRecentlyEarnedAchievements($user, $limit);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'recent_achievements' => AchievementResource::collection($recentAchievements),
+            ]
+        ]);
     }
 }
