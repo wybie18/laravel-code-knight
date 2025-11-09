@@ -22,7 +22,6 @@ class UserStatsController extends Controller
             'courses_completed'     => $user->courseProgress()->whereNotNull('completed_at')->count(),
             'activities_completed'  => $user->activityProgress()->whereNotNull('completed_at')->count(),
             'achievements_earned'   => $user->achievements()->count(),
-            'badges_earned'         => $user->badges()->count(),
             'current_streak'        => $user->streaks()->latest()->first()->current_streak ?? 0,
             'longest_streak'        => $user->streaks()->latest()->first()->longest_streak ?? 0,
             'total_submissions'     => $user->activitySubmissions()->count(),
