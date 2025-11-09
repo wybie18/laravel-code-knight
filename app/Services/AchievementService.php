@@ -2,6 +2,7 @@
 namespace App\Services;
 
 use App\Events\AchievementEarned;
+use App\Http\Resources\AchievementResource;
 use App\Models\Achievement;
 use App\Models\CodingChallenge;
 use App\Models\CtfChallenge;
@@ -145,21 +146,8 @@ class AchievementService
                     ->distinct()
                     ->count('challenge_id') >= $value;
 
-            case 'badges_count':
-                return $user->badges()->count() >= $value;
-
             case 'achievements_count':
                 return $user->achievements()->count() >= $value;
-
-            case 'has_badge':
-                return $user->badges()
-                    ->where(function ($query) use ($value) {
-                        $query->where('badge_id', $value)
-                            ->orWhereHas('badge', function ($q) use ($value) {
-                                $q->where('slug', $value);
-                            });
-                    })
-                    ->exists();
 
             case 'has_achievement':
                 return $user->achievements()
@@ -204,7 +192,7 @@ class AchievementService
             $progress = $this->calculateProgress($user, $achievement);
 
             return [
-                'achievement'         => $achievement,
+                'achievement'         => new AchievementResource($achievement),
                 'earned'              => $earned,
                 'earned_at'           => $earned ? $user->achievements()->where('achievement_id', $achievement->id)->first()->pivot->created_at : null,
                 'progress'            => $progress,
@@ -295,9 +283,6 @@ class AchievementService
                     ->distinct()
                     ->count('challenge_id');
 
-            case 'badges_count':
-                return $user->badges()->count();
-
             case 'achievements_count':
                 return $user->achievements()->count();
 
@@ -333,10 +318,8 @@ class AchievementService
 
             case 'user_activity':
                 return app(UserActivityService::class)->wasActiveToday($user) ? 1 : 0;
-
-            case 'has_badge':
             case 'has_achievement':
-                return 1; // Boolean check - will be compared in checkRequirement
+                return 1;
 
             default:
                 return $user->$key ?? 0;
