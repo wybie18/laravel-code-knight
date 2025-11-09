@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Level;
 use App\Models\User;
 use App\Services\LevelService;
+use App\Services\VerificationService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -12,6 +13,12 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    protected $verificationService;
+
+    public function __construct(VerificationService $verificationService)
+    {
+        $this->verificationService = $verificationService;
+    }
     /**
      * Register a new user.
      *
@@ -49,10 +56,23 @@ class AuthController extends Controller
         // Dispatch the Registered event if you have listeners for it (e.g., sending email verification)
         event(new Registered($user));
 
+        // Send email verification code
+        $this->verificationService->sendEmailVerificationCode(
+            $user->email,
+            $user->first_name . ' ' . $user->last_name
+        );
+
         // If the user has an existing token with the same device name, delete it
         $user->tokens()->where('name', $request->device_name)->delete();
-        // Create a new Sanctum personal access token for the user
-        $token = $user->createToken($request->device_name)->plainTextToken;
+        
+        // Create a new Sanctum personal access token for the user with 7 days expiration
+        $expiresAt = now()->addDays(7);
+        $tokenInstance = $user->createToken($request->device_name, ['*'], $expiresAt);
+        $token = $tokenInstance->plainTextToken;
+        
+        // Update the token's expires_at in the database
+        $tokenInstance->accessToken->expires_at = $expiresAt;
+        $tokenInstance->accessToken->save();
 
         $stats = null;
         if ($user->role->name === 'student') {
@@ -61,7 +81,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Account registered successfully!',
+            'message' => 'Account registered successfully! Please check your email for verification code.',
             'data'    => [
                 'token' => $token,
                 'user'  => [
@@ -71,11 +91,191 @@ class AuthController extends Controller
                     'last_name'  => $user->last_name,
                     'student_id' => $user->student_id,
                     'email'      => $user->email,
+                    'email_verified' => false,
                     'role'       => $user->role->name ?? null,
                 ],
                 'stats' => $stats
             ],
         ], 201);
+    }
+
+    /**
+     * Verify user email with code
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function verifyEmail(Request $request)
+    {
+        $request->validate([
+            'email' => ['required', 'email'],
+            'code' => ['required', 'string', 'size:6'],
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'email' => ['User not found.'],
+            ]);
+        }
+
+        if ($user->email_verified_at) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Email is already verified.',
+            ], 400);
+        }
+
+        $isValid = $this->verificationService->verifyCode(
+            $request->email,
+            $request->code,
+            'email_verification'
+        );
+
+        if (!$isValid) {
+            throw ValidationException::withMessages([
+                'code' => ['Invalid or expired verification code.'],
+            ]);
+        }
+
+        // Mark email as verified
+        $user->email_verified_at = now();
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Email verified successfully!',
+        ], 200);
+    }
+
+    /**
+     * Resend email verification code
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function resendVerificationCode(Request $request)
+    {
+        $request->validate([
+            'email' => ['required', 'email', 'exists:users,email'],
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if ($user->email_verified_at) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Email is already verified.',
+            ], 400);
+        }
+
+        $this->verificationService->sendEmailVerificationCode(
+            $user->email,
+            $user->first_name . ' ' . $user->last_name
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Verification code sent successfully!',
+        ], 200);
+    }
+
+    /**
+     * Send password reset code
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function forgotPassword(Request $request)
+    {
+        $request->validate([
+            'email' => ['required', 'email', 'exists:users,email'],
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        $this->verificationService->sendPasswordResetCode(
+            $user->email,
+            $user->first_name . ' ' . $user->last_name
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password reset code sent to your email.',
+        ], 200);
+    }
+
+    /**
+     * Verify password reset code
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function verifyResetCode(Request $request)
+    {
+        $request->validate([
+            'email' => ['required', 'email'],
+            'code' => ['required', 'string', 'size:6'],
+        ]);
+
+        $isValid = $this->verificationService->isCodeValid(
+            $request->email,
+            $request->code,
+            'password_reset'
+        );
+
+        if (!$isValid) {
+            throw ValidationException::withMessages([
+                'code' => ['Invalid or expired verification code.'],
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Verification code is valid.',
+        ], 200);
+    }
+
+    /**
+     * Reset password with verification code
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'email' => ['required', 'email', 'exists:users,email'],
+            'code' => ['required', 'string', 'size:6'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        $isValid = $this->verificationService->verifyCode(
+            $request->email,
+            $request->code,
+            'password_reset'
+        );
+
+        if (!$isValid) {
+            throw ValidationException::withMessages([
+                'code' => ['Invalid or expired verification code.'],
+            ]);
+        }
+
+        // Update password
+        $user->password = Hash::make($request->password);
+        $user->save();
+
+        // Revoke all existing tokens for security
+        $user->tokens()->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password reset successfully. Please login with your new password.',
+        ], 200);
     }
 
     /**
@@ -91,6 +291,7 @@ class AuthController extends Controller
             'email'       => ['required', 'email'],
             'password'    => ['required'],
             'device_name' => ['required', 'string', 'max:255'],
+            'remember'    => ['nullable', 'boolean'],
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -122,7 +323,16 @@ class AuthController extends Controller
             ];
         }
 
-        $token = $user->createToken($request->device_name, $abilities)->plainTextToken;
+        // Set token expiration: 30 days if remember is true, 7 days otherwise
+        $remember = $request->input('remember', false);
+        $expiresAt = $remember ? now()->addDays(30) : now()->addDays(7);
+
+        $tokenInstance = $user->createToken($request->device_name, $abilities, $expiresAt);
+        $token = $tokenInstance->plainTextToken;
+
+        // Update the token's expires_at in the database
+        $tokenInstance->accessToken->expires_at = $expiresAt;
+        $tokenInstance->accessToken->save();
 
         $stats = null;
         if ($user->role->name === 'student') {
@@ -172,7 +382,6 @@ class AuthController extends Controller
             'courses_completed'     => $user->courseProgress()->whereNotNull('completed_at')->count(),
             'activities_completed'  => $user->activityProgress()->whereNotNull('completed_at')->count(),
             'achievements_earned'   => $user->achievements()->count(),
-            'badges_earned'         => $user->badges()->count(),
             'current_streak'        => $user->streaks()->latest()->first()->current_streak ?? 0,
             'longest_streak'        => $user->streaks()->latest()->first()->longest_streak ?? 0,
             'total_submissions'     => $user->activitySubmissions()->count(),
