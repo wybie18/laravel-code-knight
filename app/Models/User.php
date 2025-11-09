@@ -54,11 +54,6 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
-    public function badges()
-    {
-        return $this->hasMany(UserBadge::class);
-    }
-
     public function courseEnrollments()
     {
         return $this->hasMany(CourseEnrollment::class);
