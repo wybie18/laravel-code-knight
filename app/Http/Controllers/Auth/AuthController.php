@@ -9,6 +9,7 @@ use App\Services\VerificationService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -89,6 +90,7 @@ class AuthController extends Controller
                     'username'   => $user->username,
                     'first_name' => $user->first_name,
                     'last_name'  => $user->last_name,
+                    'avatar'     => $user->avatar ? url(Storage::url($user->avatar)) : null,
                     'student_id' => $user->student_id,
                     'email'      => $user->email,
                     'email_verified' => false,
@@ -349,6 +351,7 @@ class AuthController extends Controller
                     'username'   => $user->username,
                     'first_name' => $user->first_name,
                     'last_name'  => $user->last_name,
+                    'avatar'     => $user->avatar ? url(Storage::url($user->avatar)) : null,
                     'student_id' => $user->student_id,
                     'email'      => $user->email,
                     'role'       => $user->role->name ?? null,
