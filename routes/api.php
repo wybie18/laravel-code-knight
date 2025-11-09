@@ -17,3 +17,4 @@ require __DIR__ . '/api/settings.php';
 require __DIR__ . '/api/gamification.php';
 require __DIR__ . '/api/users.php';
 require __DIR__ . '/api/user.php';
+require __DIR__ . '/api/leaderboards.php';
