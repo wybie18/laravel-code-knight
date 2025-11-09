@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\AchievementTypeController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\BadgeCategoryController;
 use App\Http\Controllers\CourseCategoryController;
 use App\Http\Controllers\CtfCategoryController;
 use App\Http\Controllers\DifficultyController;
@@ -21,13 +20,6 @@ Route::middleware('auth:sanctum')->group(function () {
         ->only(['index', 'show']);
 
     Route::apiResource('settings/categories/ctf', CtfCategoryController::class)
-        ->only(['store', 'update', 'destroy'])
-        ->middleware('ability:admin:*');
-
-    Route::apiResource('settings/categories/badges', BadgeCategoryController::class)
-        ->only(['index', 'show']);
-
-    Route::apiResource('settings/categories/badges', BadgeCategoryController::class)
         ->only(['store', 'update', 'destroy'])
         ->middleware('ability:admin:*');
 
