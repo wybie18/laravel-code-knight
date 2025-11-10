@@ -21,10 +21,30 @@ class UserResource extends JsonResource
             'last_name'  => $this->last_name,
             'username'   => $this->username,
             'email'      => $this->email,
-            'avatar'     => $this->avatar ? url(Storage::url($this->avatar)) : '',
+            'avatar'     => $this->getAvatarUrl(),
             'role'       => $this->whenLoaded('role', fn() => $this->role->name),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
+    }
+
+    /**
+     * Get the avatar URL, handling both local paths and external URLs.
+     *
+     * @return string
+     */
+    protected function getAvatarUrl(): string
+    {
+        if (!$this->avatar) {
+            return '';
+        }
+
+        // Check if avatar is already a full URL (starts with http:// or https://)
+        if (filter_var($this->avatar, FILTER_VALIDATE_URL)) {
+            return $this->avatar;
+        }
+
+        // Otherwise, treat it as a local storage path
+        return url(Storage::url($this->avatar));
     }
 }
