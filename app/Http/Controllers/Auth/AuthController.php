@@ -90,7 +90,7 @@ class AuthController extends Controller
                     'username'   => $user->username,
                     'first_name' => $user->first_name,
                     'last_name'  => $user->last_name,
-                    'avatar'     => $user->avatar ? url(Storage::url($user->avatar)) : null,
+                    'avatar'     => $this->getAvatarUrl($user->avatar),
                     'student_id' => $user->student_id,
                     'email'      => $user->email,
                     'email_verified' => false,
@@ -351,7 +351,7 @@ class AuthController extends Controller
                     'username'   => $user->username,
                     'first_name' => $user->first_name,
                     'last_name'  => $user->last_name,
-                    'avatar'     => $user->avatar ? url(Storage::url($user->avatar)) : null,
+                    'avatar'     => $this->getAvatarUrl($user->avatar),
                     'student_id' => $user->student_id,
                     'email'      => $user->email,
                     'role'       => $user->role->name ?? null,
@@ -391,5 +391,26 @@ class AuthController extends Controller
             'challenge_submissions' => $user->challengeSubmissions()->count(),
             'challenges_completed'  => $user->challengeSubmissions()->where('is_correct', true)->distinct('challenge_id')->count(),
         ];
+    }
+
+    /**
+     * Get the avatar URL, handling both local paths and external URLs.
+     *
+     * @param string|null $avatar
+     * @return string|null
+     */
+    private function getAvatarUrl($avatar)
+    {
+        if (!$avatar) {
+            return null;
+        }
+
+        // Check if avatar is already a full URL (starts with http:// or https://)
+        if (filter_var($avatar, FILTER_VALIDATE_URL)) {
+            return $avatar;
+        }
+
+        // Otherwise, treat it as a local storage path
+        return url(Storage::url($avatar));
     }
 }
