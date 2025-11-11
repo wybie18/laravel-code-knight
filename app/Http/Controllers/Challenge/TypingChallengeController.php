@@ -17,7 +17,9 @@ class TypingChallengeController extends Controller
      */
     public function index(Request $request)
     {
-        if (! $request->user()->tokenCan('admin:*') && ! $request->user()->tokenCan('challenge:view')) {
+        // Allow both guests and authenticated users to view challenges
+        // Authenticated users need either admin or challenge:view permission
+        if ($request->user() && !$request->user()->tokenCan('admin:*') && !$request->user()->tokenCan('challenge:view')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
@@ -56,7 +58,7 @@ class TypingChallengeController extends Controller
             }
         }
 
-        if ($request->has('hide_solved') && $request->boolean('hide_solved')) {
+        if ($request->has('hide_solved') && $request->boolean('hide_solved') && $request->user()) {
             $userId = $request->user()->id;
 
             $query->whereDoesntHave('submissions', function ($q) use ($userId) {
@@ -72,10 +74,15 @@ class TypingChallengeController extends Controller
         $challenges = $query->paginate(15);
 
         $challenges->getCollection()->transform(function ($challenge) use ($request) {
-            $challenge->is_solved = ChallengeSubmission::where('challenge_id', $challenge->id)
-                ->where('user_id', $request->user()->id)
-                ->where('is_correct', true)
-                ->exists();
+            // Check if user is authenticated before checking solved status
+            if ($request->user()) {
+                $challenge->is_solved = ChallengeSubmission::where('challenge_id', $challenge->id)
+                    ->where('user_id', $request->user()->id)
+                    ->where('is_correct', true)
+                    ->exists();
+            } else {
+                $challenge->is_solved = false;
+            }
             return $challenge;
         });
 
@@ -154,7 +161,9 @@ class TypingChallengeController extends Controller
      */
     public function show(string $slug)
     {
-        if (! request()->user()->tokenCan('admin:*') && ! request()->user()->tokenCan('challenge:view')) {
+        // Allow both guests and authenticated users to view challenges
+        // Authenticated users need either admin or challenge:view permission
+        if (request()->user() && !request()->user()->tokenCan('admin:*') && !request()->user()->tokenCan('challenge:view')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
