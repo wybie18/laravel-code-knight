@@ -16,6 +16,15 @@ Route::get('difficulties/all', [DifficultyController::class, 'getDifficulties'])
 Route::get('ctf-categories/all', [CtfCategoryController::class, 'getAllCtfCategories']);
 Route::get('programming-languages/all', [ProgrammingLanguageController::class, 'getProgrammingLanguages']);
 
+// Public routes - accessible by guests
+Route::get('challenges/coding', [CodingChallengeController::class, 'index']);
+Route::get('challenges/coding/{coding}', [CodingChallengeController::class, 'show']);
+Route::get('challenges/ctf', [CtfChallengeController::class, 'index']);
+Route::get('challenges/ctf/{ctf}', [CtfChallengeController::class, 'show']);
+Route::get('challenges/typing', [TypingChallengeController::class, 'index']);
+Route::get('challenges/typing/{typing}', [TypingChallengeController::class, 'show']);
+
+
 Route::middleware(['auth:sanctum', 'ability:admin:*'])->group(function () {
     Route::apiResource('challenges/ctf', CtfChallengeController::class)->except(['index', 'show']);
     Route::apiResource('challenges/coding', CodingChallengeController::class)->except(['index', 'show']);
@@ -23,18 +32,12 @@ Route::middleware(['auth:sanctum', 'ability:admin:*'])->group(function () {
 });
 
 Route::middleware(['auth:sanctum'])->group(function () {
-    Route::get('challenges/ctf', [CtfChallengeController::class, 'index']);
-    Route::get('challenges/ctf/{ctf}', [CtfChallengeController::class, 'show']);
     Route::post('challenges/ctf/{ctf}/submit', [CtfSubmissionController::class, 'store']);
 
-    Route::get('challenges/coding', [CodingChallengeController::class, 'index']);
-    Route::get('challenges/coding/{coding}', [CodingChallengeController::class, 'show']);
     Route::post('challenges/coding/{coding}/execute-code', [ChallengeCodeExecutionController::class, 'executeCode']);
     Route::post('challenges/coding/{coding}/submit', [ChallengeCodeExecutionController::class, 'submitCode']);
     Route::get('challenges/coding/{coding}/submissions', [ChallengeCodeExecutionController::class, 'getSubmissionHistory']);
 
-    Route::get('challenges/typing', [TypingChallengeController::class, 'index']);
-    Route::get('challenges/typing/{typing}', [TypingChallengeController::class, 'show']);
     Route::post('challenges/typing/{typing}/submit', [TypingSubmissionController::class, 'store']);
     Route::get('challenges/typing/{typing}/submissions', [TypingSubmissionController::class, 'getSubmissionHistory']);
 
