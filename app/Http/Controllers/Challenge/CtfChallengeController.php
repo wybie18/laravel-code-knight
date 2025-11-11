@@ -18,7 +18,9 @@ class CtfChallengeController extends Controller
      */
     public function index(Request $request)
     {
-        if (! $request->user()->tokenCan('admin:*') && ! $request->user()->tokenCan('challenge:view')) {
+        // Allow both guests and authenticated users to view challenges
+        // Authenticated users need either admin or challenge:view permission
+        if ($request->user() && !$request->user()->tokenCan('admin:*') && !$request->user()->tokenCan('challenge:view')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
@@ -57,7 +59,7 @@ class CtfChallengeController extends Controller
             }
         }
 
-        if ($request->has('hide_solved') && $request->boolean('hide_solved')) {
+        if ($request->has('hide_solved') && $request->boolean('hide_solved') && $request->user()) {
             $userId = $request->user()->id;
 
             $query->whereDoesntHave('submissions', function ($q) use ($userId) {
@@ -75,10 +77,15 @@ class CtfChallengeController extends Controller
         $challenges->load(['challengeable', 'difficulty', 'challengeable.category']);
 
         $challenges->getCollection()->transform(function ($challenge) use ($request) {
-            $challenge->is_solved = ChallengeSubmission::where('challenge_id', $challenge->id)
-                ->where('user_id', $request->user()->id)
-                ->where('is_correct', true)
-                ->exists();
+            // Check if user is authenticated before checking solved status
+            if ($request->user()) {
+                $challenge->is_solved = ChallengeSubmission::where('challenge_id', $challenge->id)
+                    ->where('user_id', $request->user()->id)
+                    ->where('is_correct', true)
+                    ->exists();
+            } else {
+                $challenge->is_solved = false;
+            }
             return $challenge;
         });
 
@@ -165,7 +172,9 @@ class CtfChallengeController extends Controller
      */
     public function show(string $slug)
     {
-        if (! request()->user()->tokenCan('admin:*') && ! request()->user()->tokenCan('user:*')) {
+        // Allow both guests and authenticated users to view challenges
+        // Authenticated users need either admin or user permissions
+        if (request()->user() && !request()->user()->tokenCan('admin:*') && !request()->user()->tokenCan('user:*')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
@@ -173,7 +182,9 @@ class CtfChallengeController extends Controller
             ->where('challengeable_type', CtfChallenge::class)
             ->with(['challengeable', 'difficulty', 'challengeable.category'])
             ->firstOrFail();
-        if (! request()->user()->tokenCan('admin:*')) {
+            
+        // Hide flag from non-admin users (including guests)
+        if (!request()->user() || !request()->user()->tokenCan('admin:*')) {
             unset($challenge->challengeable->flag);
         }
 
