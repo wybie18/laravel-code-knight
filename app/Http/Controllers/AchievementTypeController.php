@@ -45,7 +45,6 @@ class AchievementTypeController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:achievement_types,name',
-            'color' => 'nullable|string|max:7',
         ]);
 
         $achievementType = AchievementType::create($validated);
@@ -83,7 +82,6 @@ class AchievementTypeController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:achievement_types,name,' . $achievementType->id,
-            'color' => 'nullable|string|max:7',
         ]);
 
         $achievementType->update($validated);

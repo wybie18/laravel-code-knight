@@ -23,7 +23,6 @@ return new class extends Migration
             $table->string('slug')->unique();
             $table->text('description');
             $table->string('icon');
-            $table->string('color')->default('#3B82F6');
             $table->foreignId('type_id')->constrained('achievement_types');
             $table->integer('exp_reward')->default(0);
             $table->json('requirements')->nullable();

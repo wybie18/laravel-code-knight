@@ -20,7 +20,6 @@ class AchievementResource extends JsonResource
             'slug'         => $this->slug,
             'description'  => $this->description,
             'icon'         => $this->icon ? url(Storage::url($this->icon)) : '',
-            'color'        => $this->color,
             'exp_reward'   => $this->exp_reward,
             'type'         => $this->whenLoaded('type'),
             'requirements' => $this->requirements,

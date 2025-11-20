@@ -8,7 +8,6 @@ class CtfCategory extends Model
 {
     protected $fillable = [
         'name',
-        'color',
     ];
 
     public function ctfChallenges()

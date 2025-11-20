@@ -34,7 +34,7 @@ class SkillTagController extends Controller
 
     public function getAllSkillTags()
     {
-        $skillTags = SkillTag::select('id', 'name', 'color')->get();
+        $skillTags = SkillTag::select('id', 'name')->get();
 
         return SkillTagResource::collection($skillTags)->additional([
             'success' => true,
@@ -52,7 +52,6 @@ class SkillTagController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:skill_tags,name',
-            'color' => 'nullable|string|max:7',
         ]);
 
         $skillTag = SkillTag::create($validated);
@@ -89,7 +88,6 @@ class SkillTagController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:skill_tags,name,' . $skillTag->id,
-            'color' => 'nullable|string|max:7',
         ]);
 
         $skillTag->update($validated);

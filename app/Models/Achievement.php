@@ -11,7 +11,6 @@ class Achievement extends Model
         'slug',
         'description',
         'icon',
-        'color',
         'type_id',
         'exp_reward',
         'requirements',

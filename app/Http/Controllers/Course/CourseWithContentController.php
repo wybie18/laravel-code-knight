@@ -31,6 +31,7 @@ class CourseWithContentController extends Controller
             'exp_reward'                                                  => 'nullable|integer|min:0',
             'estimated_duration'                                          => 'nullable|integer|min:0',
             'is_published'                                                => 'sometimes|boolean',
+            'visibility'                                                  => 'sometimes|in:public,private',
             'skill_tag_ids'                                               => 'sometimes|array',
             'skill_tag_ids.*'                                             => 'exists:skill_tags,id',
             'thumbnail'                                                   => 'sometimes|image|max:2048', // 2MB max
@@ -89,10 +90,16 @@ class CourseWithContentController extends Controller
             $courseData = collect($validated)->only([
                 'title', 'description', 'short_description', 'objectives', 'requirements',
                 'difficulty_id', 'category_id', 'programming_language_id',
-                'exp_reward', 'estimated_duration', 'is_published',
+                'exp_reward', 'estimated_duration', 'is_published', 'visibility',
             ])->toArray();
 
             $courseData['slug'] = $this->generateTypeSlug($validated['title']);
+            $courseData['created_by'] = \Illuminate\Support\Facades\Auth::id();
+            
+            // Auto-generate course code using service
+            $enrollmentService = app(\App\Services\CourseEnrollmentService::class);
+            $courseData['course_code'] = $enrollmentService->generateCourseCode();
+            
             if ($thumbnailPath) {
                 $courseData['thumbnail'] = $thumbnailPath;
             }
@@ -220,6 +227,7 @@ class CourseWithContentController extends Controller
             'exp_reward'                                                  => 'nullable|integer|min:0',
             'estimated_duration'                                          => 'nullable|integer|min:0',
             'is_published'                                                => 'sometimes|boolean',
+            'visibility'                                                  => 'sometimes|in:public,private',
             'skill_tag_ids'                                               => 'sometimes|array',
             'skill_tag_ids.*'                                             => 'exists:skill_tags,id',
             'thumbnail'                                                   => 'sometimes|image|max:2048',
@@ -296,7 +304,7 @@ class CourseWithContentController extends Controller
             $courseData = collect($validated)->only([
                 'title', 'description', 'short_description', 'objectives', 'requirements',
                 'difficulty_id', 'category_id', 'programming_language_id',
-                'exp_reward', 'estimated_duration', 'is_published',
+                'exp_reward', 'estimated_duration', 'is_published', 'visibility',
             ])->toArray();
 
             if ($course->title !== $validated['title']) {
@@ -304,6 +312,13 @@ class CourseWithContentController extends Controller
             }
 
             $courseData['thumbnail'] = $thumbnailPath;
+            
+            // If visibility is changed to private and no course code exists, generate one
+            if (isset($validated['visibility']) && $validated['visibility'] === 'private' && !$course->course_code) {
+                $enrollmentService = app(\App\Services\CourseEnrollmentService::class);
+                $courseData['course_code'] = $enrollmentService->generateCourseCode();
+            }
+            
             $course->update($courseData);
 
             // Sync skill tags

@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\CourseResource;
 use App\Models\Course;
 use App\Services\ContentOrderingService;
+use App\Services\CourseEnrollmentService;
 use App\Services\CourseProgressService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,19 +18,26 @@ class CourseController extends Controller
 {
     private CourseProgressService $progressService;
     private ContentOrderingService $contentOrderingService;
+    private CourseEnrollmentService $enrollmentService;
 
     public function __construct(
         CourseProgressService $progressService,
-        ContentOrderingService $contentOrderingService
+        ContentOrderingService $contentOrderingService,
+        CourseEnrollmentService $enrollmentService
     ) {
         $this->progressService        = $progressService;
         $this->contentOrderingService = $contentOrderingService;
+        $this->enrollmentService      = $enrollmentService;
     }
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
+        $user = $request->user();
+        if (!$user->tokenCan('admin:*') && !$user->tokenCan('challenge:view')) {
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
         $request->validate([
             'search'        => 'sometimes|string|max:255',
             'category_id'   => 'sometimes|exists:course_categories,id',
@@ -39,6 +47,21 @@ class CourseController extends Controller
         ]);
 
         $query = Course::query();
+
+        $query->where(function ($q) use ($user) {
+            $q->where('visibility', 'public');
+
+            if ($user) {
+                $q->orWhereHas('enrollments', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                });
+                $q->orWhere('created_by', $user->id);
+            }
+        });
+        
+        if ($user->role->name == 'teacher') {
+            $query->where('created_by', $user->id);
+        }
 
         if ($request->filled('search')) {
             $searchTerm = $request->input('search');
@@ -99,12 +122,17 @@ class CourseController extends Controller
             'exp_reward'              => 'nullable|integer|min:0',
             'estimated_duration'      => 'nullable|integer|min:0',
             'is_published'            => 'sometimes|boolean',
+            'visibility'              => 'sometimes|in:public,private',
             'skill_tag_ids'           => 'sometimes|array',
             'skill_tag_ids.*'         => 'exists:skill_tags,id',
             'programming_language_id' => 'required|exists:programming_languages,id',
         ]);
 
         $validated['slug'] = $this->generateUniqueSlug($validated['title']);
+        $validated['created_by'] = Auth::id();
+        
+        // Auto-generate course code
+        $validated['course_code'] = $this->enrollmentService->generateCourseCode();
 
         $course = Course::create($validated);
 
@@ -112,7 +140,7 @@ class CourseController extends Controller
             $course->skillTags()->attach($request->input('skill_tag_ids'));
         }
 
-        $course->load(['difficulty', 'category', 'skillTags', 'programmingLanguage']);
+        $course->load(['difficulty', 'category', 'skillTags', 'programmingLanguage', 'creator']);
 
         return (new CourseResource($course))
             ->additional([
@@ -133,8 +161,12 @@ class CourseController extends Controller
         if (Auth::check()) {
             $user = request()->user();
 
-            if ($user->tokenCan('admin:*')) {
+            if ($user->tokenCan('admin:*') || $user->tokenCan('courses:update')) {
                 $course->load(['modules.lessons', 'modules.activities']);
+            }else {
+                if ($course->visibility === 'private' && $course->created_by !== $user->id && !$this->enrollmentService->isUserEnrolled($user, $course)) {
+                    abort(403, 'Unauthorized. You do not have permission to view this private course.');
+                }
             }
 
             if ($user->tokenCan('courses:view')) {
@@ -391,6 +423,178 @@ class CourseController extends Controller
         return CourseResource::collection($courses)->additional([
             'success' => true,
         ]);
+    }
+
+    /**
+     * Enroll in course using course code
+     */
+    public function enrollWithCode(Request $request)
+    {
+        $request->validate([
+            'code' => 'required|string|size:8',
+        ]);
+
+        $user = Auth::user();
+
+        try {
+            $enrollment = $this->enrollmentService->enrollByCourseCode($user, $request->code);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Successfully enrolled in the course.',
+                'data' => [
+                    'enrollment_id' => $enrollment->id,
+                    'course' => new CourseResource($enrollment->course),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Enroll students by course creator
+     */
+    public function enrollStudents(Request $request, Course $course)
+    {
+        $user = Auth::user();
+
+        $request->validate([
+            'student_ids' => 'required|array|min:1',
+            'student_ids.*' => 'exists:users,id',
+        ]);
+
+        try {
+            $result = $this->enrollmentService->enrollStudentsByCourseCreator(
+                $course,
+                $request->student_ids,
+                $user
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => "Enrolled {$result['total_enrolled']} student(s) successfully.",
+                'data' => $result,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 403);
+        }
+    }
+
+    /**
+     * Remove student from course (by creator)
+     */
+    public function removeStudent(Request $request, Course $course)
+    {
+        $user = Auth::user();
+
+        $request->validate([
+            'student_id' => 'required|exists:users,id',
+        ]);
+
+        try {
+            $this->enrollmentService->removeStudent($course, $request->student_id, $user);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Student removed from course successfully.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 403);
+        }
+    }
+
+    /**
+     * Get enrolled students for a course
+     */
+    public function getEnrolledStudents(Course $course)
+    {
+        $user = Auth::user();
+
+        try {
+            $students = $this->enrollmentService->getEnrolledStudents($course, $user);
+
+            return response()->json([
+                'success' => true,
+                'data' => $students,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 403);
+        }
+    }
+
+    /**
+     * Regenerate course code
+     */
+    public function regenerateCourseCode(Course $course)
+    {
+        $user = Auth::user();
+
+        try {
+            $newCode = $this->enrollmentService->regenerateCourseCode($course, $user);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Course code regenerated successfully.',
+                'data' => [
+                    'course_code' => $newCode,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 403);
+        }
+    }
+
+    /**
+     * Check if user can enroll
+     */
+    public function checkEnrollment(Course $course)
+    {
+        $user = Auth::user();
+
+        $result = $this->enrollmentService->canEnroll($user, $course);
+
+        return response()->json([
+            'success' => true,
+            'data' => $result,
+        ]);
+    }
+
+    /**
+     * Unenroll from course (self)
+     */
+    public function unenroll(Course $course)
+    {
+        $user = Auth::user();
+
+        try {
+            $this->enrollmentService->unenrollUser($user, $course);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Successfully unenrolled from the course.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 
     /**

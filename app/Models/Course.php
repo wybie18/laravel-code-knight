@@ -9,6 +9,7 @@ class Course extends Model
     protected $fillable = [
         'title',
         'slug',
+        'course_code',
         'description',
         'short_description',
         'objectives',
@@ -19,7 +20,9 @@ class Course extends Model
         'exp_reward',
         'estimated_duration',
         'is_published',
+        'visibility',
         'programming_language_id',
+        'created_by',
     ];
 
     /**
@@ -76,5 +79,31 @@ class Course extends Model
     public function programmingLanguage()
     {
         return $this->belongsTo(ProgrammingLanguage::class);
+    }
+
+    public function tests()
+    {
+        return $this->hasMany(Test::class);
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Check if course is private
+     */
+    public function isPrivate(): bool
+    {
+        return $this->visibility === 'private';
+    }
+
+    /**
+     * Check if course is public
+     */
+    public function isPublic(): bool
+    {
+        return $this->visibility === 'public';
     }
 }

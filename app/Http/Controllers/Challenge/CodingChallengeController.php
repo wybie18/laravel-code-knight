@@ -17,8 +17,17 @@ class CodingChallengeController extends Controller
      */
     public function index(Request $request)
     {
+        $user = $request->user();
+        if (!$user->tokenCan('admin:*') && !$user->tokenCan('challenge:view')) {
+            abort(403, 'Unauthorized. You do not have permission.');
+        }
+
         $query = Challenge::query()
             ->where('challengeable_type', CodingChallenge::class);
+
+        if ($user->role->name == 'teacher' && !$request->has('all')) {
+            $query->where('created_by', $user->id);
+        }
 
         if ($request->has('search')) {
             $searchTerm = $request->input('search');

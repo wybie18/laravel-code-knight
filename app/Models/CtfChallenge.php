@@ -23,4 +23,10 @@ class CtfChallenge extends Model
     {
         return $this->belongsTo(CtfCategory::class, 'category_id');
     }
+
+    // Polymorphic relationship for test items
+    public function testItems()
+    {
+        return $this->morphMany(TestItem::class, 'itemable');
+    }
 }

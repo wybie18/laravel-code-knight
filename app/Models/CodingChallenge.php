@@ -21,4 +21,10 @@ class CodingChallenge extends Model
             ->using(ChallengeLanguage::class)
             ->withPivot('starter_code');
     }
+
+    // Polymorphic relationship for test items
+    public function testItems()
+    {
+        return $this->morphMany(TestItem::class, 'itemable');
+    }
 }

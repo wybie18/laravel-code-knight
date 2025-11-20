@@ -19,7 +19,7 @@ Route::post('/verify-reset-code', [AuthController::class, 'verifyResetCode']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // OAuth routes
-Route::get('/auth/{provider}/redirect', [SocialAuthController::class, 'redirectToProvider']);
+Route::post('/auth/{provider}/prepare', [SocialAuthController::class, 'prepareOAuth']);
 Route::get('/auth/{provider}/callback', [SocialAuthController::class, 'handleProviderCallback']);
 
 Route::middleware('auth:sanctum')->group(function () {

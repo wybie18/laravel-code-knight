@@ -2,7 +2,6 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\Level;
 use App\Models\User;
 use App\Services\LevelService;
 use App\Services\VerificationService;
@@ -65,12 +64,12 @@ class AuthController extends Controller
 
         // If the user has an existing token with the same device name, delete it
         $user->tokens()->where('name', $request->device_name)->delete();
-        
+
         // Create a new Sanctum personal access token for the user with 7 days expiration
-        $expiresAt = now()->addDays(7);
+        $expiresAt     = now()->addDays(7);
         $tokenInstance = $user->createToken($request->device_name, ['*'], $expiresAt);
-        $token = $tokenInstance->plainTextToken;
-        
+        $token         = $tokenInstance->plainTextToken;
+
         // Update the token's expires_at in the database
         $tokenInstance->accessToken->expires_at = $expiresAt;
         $tokenInstance->accessToken->save();
@@ -86,17 +85,17 @@ class AuthController extends Controller
             'data'    => [
                 'token' => $token,
                 'user'  => [
-                    'id'         => $user->id,
-                    'username'   => $user->username,
-                    'first_name' => $user->first_name,
-                    'last_name'  => $user->last_name,
-                    'avatar'     => $this->getAvatarUrl($user->avatar),
-                    'student_id' => $user->student_id,
-                    'email'      => $user->email,
+                    'id'             => $user->id,
+                    'username'       => $user->username,
+                    'first_name'     => $user->first_name,
+                    'last_name'      => $user->last_name,
+                    'avatar'         => $this->getAvatarUrl($user->avatar),
+                    'student_id'     => $user->student_id,
+                    'email'          => $user->email,
                     'email_verified' => false,
-                    'role'       => $user->role->name ?? null,
+                    'role'           => $user->role->name ?? null,
                 ],
-                'stats' => $stats
+                'stats' => $stats,
             ],
         ], 201);
     }
@@ -111,12 +110,12 @@ class AuthController extends Controller
     {
         $request->validate([
             'email' => ['required', 'email'],
-            'code' => ['required', 'string', 'size:6'],
+            'code'  => ['required', 'string', 'size:6'],
         ]);
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user) {
+        if (! $user) {
             throw ValidationException::withMessages([
                 'email' => ['User not found.'],
             ]);
@@ -135,7 +134,7 @@ class AuthController extends Controller
             'email_verification'
         );
 
-        if (!$isValid) {
+        if (! $isValid) {
             throw ValidationException::withMessages([
                 'code' => ['Invalid or expired verification code.'],
             ]);
@@ -218,7 +217,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'email' => ['required', 'email'],
-            'code' => ['required', 'string', 'size:6'],
+            'code'  => ['required', 'string', 'size:6'],
         ]);
 
         $isValid = $this->verificationService->isCodeValid(
@@ -227,7 +226,7 @@ class AuthController extends Controller
             'password_reset'
         );
 
-        if (!$isValid) {
+        if (! $isValid) {
             throw ValidationException::withMessages([
                 'code' => ['Invalid or expired verification code.'],
             ]);
@@ -248,8 +247,8 @@ class AuthController extends Controller
     public function resetPassword(Request $request)
     {
         $request->validate([
-            'email' => ['required', 'email', 'exists:users,email'],
-            'code' => ['required', 'string', 'size:6'],
+            'email'    => ['required', 'email', 'exists:users,email'],
+            'code'     => ['required', 'string', 'size:6'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
@@ -261,7 +260,7 @@ class AuthController extends Controller
             'password_reset'
         );
 
-        if (!$isValid) {
+        if (! $isValid) {
             throw ValidationException::withMessages([
                 'code' => ['Invalid or expired verification code.'],
             ]);
@@ -311,6 +310,24 @@ class AuthController extends Controller
         $abilities = [];
         if ($user->role->name == "admin") {
             $abilities = ['admin:*'];
+        } else if ($user->role->name == "teacher") {
+            $abilities = [
+                'courses:create',
+                'courses:update',
+                'courses:delete',
+                'courses:view',
+                'challenges:create',
+                'challenges:update',
+                'challenges:delete',
+                'challenge:view',
+                'tests:create',
+                'tests:update',
+                'tests:delete',
+                'tests:view',
+                'tests:manage',
+                'students:view',
+                'submissions:view',
+            ];
         } else {
             $abilities = [
                 'profile:view',
@@ -318,7 +335,6 @@ class AuthController extends Controller
                 'courses:view',
                 'challenge:view',
                 'activity:view',
-                'flashcard:view',
                 'submissions:create',
                 'submissions:view-own',
                 'submissions:update-own',
@@ -326,11 +342,11 @@ class AuthController extends Controller
         }
 
         // Set token expiration: 30 days if remember is true, 7 days otherwise
-        $remember = $request->input('remember', false);
+        $remember  = $request->input('remember', false);
         $expiresAt = $remember ? now()->addDays(30) : now()->addDays(7);
 
         $tokenInstance = $user->createToken($request->device_name, $abilities, $expiresAt);
-        $token = $tokenInstance->plainTextToken;
+        $token         = $tokenInstance->plainTextToken;
 
         // Update the token's expires_at in the database
         $tokenInstance->accessToken->expires_at = $expiresAt;
@@ -378,7 +394,7 @@ class AuthController extends Controller
     private function getUserStats(User $user)
     {
         $levelService = app(LevelService::class);
-        $levelInfo = $levelService->getUserLevelInfo($user);
+        $levelInfo    = $levelService->getUserLevelInfo($user);
         return [
             'level'                 => $levelInfo,
             'courses_enrolled'      => $user->courseEnrollments()->count(),
@@ -401,7 +417,7 @@ class AuthController extends Controller
      */
     private function getAvatarUrl($avatar)
     {
-        if (!$avatar) {
+        if (! $avatar) {
             return null;
         }
 

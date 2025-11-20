@@ -34,7 +34,7 @@ class CtfCategoryController extends Controller
 
     public function getAllCtfCategories()
     {
-        $ctfCategories = CtfCategory::select('id', 'name', 'color')->get();
+        $ctfCategories = CtfCategory::select('id', 'name')->get();
 
         return CtfCategoryResource::collection($ctfCategories)->additional([
             'success' => true,
@@ -52,7 +52,6 @@ class CtfCategoryController extends Controller
 
         $validated = $request->validate([
             'name'  => 'required|string|max:255|unique:ctf_categories,name',
-            'color' => 'nullable|string|max:7',
         ]);
 
         $ctfCategory = CtfCategory::create($validated);
@@ -90,7 +89,6 @@ class CtfCategoryController extends Controller
 
         $validated = $request->validate([
             'name'  => 'required|string|max:255|unique:ctf_categories,name,' . $ctfCategory->id,
-            'color' => 'nullable|string|max:7',
         ]);
 
         $ctfCategory->update($validated);

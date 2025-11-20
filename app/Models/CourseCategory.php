@@ -8,7 +8,6 @@ class CourseCategory extends Model
 {
     protected $fillable = [
         'name',
-        'color',
     ];
 
     public function courses()

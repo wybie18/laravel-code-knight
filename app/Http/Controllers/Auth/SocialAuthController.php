@@ -5,24 +5,41 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\LevelService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
 class SocialAuthController extends Controller
 {
-    /**
-     * Redirect the user to the OAuth Provider.
-     *
-     * @param string $provider
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function redirectToProvider($provider)
+    public function prepareOAuth(Request $request, $provider)
     {
         $this->validateProvider($provider);
 
-        return Socialite::driver($provider)->stateless()->redirect();
+        $request->validate([
+            'role'        => 'nullable|string|in:teacher,student',
+            'device_name' => 'required|string|max:255',
+        ]);
+
+        $stateToken = Str::random(40);
+        Cache::put("oauth_state_{$stateToken}", [
+            'role'        => $request->role,
+            'device_name' => $request->device_name,
+        ], now()->addMinutes(10));
+
+        $redirectUrl = Socialite::driver($provider)
+            ->stateless()
+            ->with(['state' => $stateToken])
+            ->redirect()
+            ->getTargetUrl();
+
+        return response()->json([
+            'success' => true,
+            'url'     => $redirectUrl,
+        ]);
     }
 
     /**
@@ -30,35 +47,76 @@ class SocialAuthController extends Controller
      *
      * @param string $provider
      * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function handleProviderCallback($provider, Request $request)
     {
         try {
             $this->validateProvider($provider);
 
-            // Get device_name from query parameters (passed by frontend)
-            $deviceName = $request->query('device_name', 'Unknown Device');
+            $stateToken = $request->query('state');
 
-            if (! $deviceName) {
-                return redirect()->away(config('app.frontend_url') . "/auth/error=" . urlencode('The device name field is required.'));
+            if (! $stateToken) {
+                return redirect()->away(config('app.frontend_url') . "/auth/error?" . http_build_query([
+                    'message' => 'Invalid OAuth state. Please try again.',
+                ]));
             }
 
-            // Get the OAuth user using the code from query parameters
+            $oauthData = Cache::pull("oauth_state_{$stateToken}");
+
+            if (! $oauthData) {
+                return redirect()->away(config('app.frontend_url') . "/auth/error?" . http_build_query([
+                    'message' => 'OAuth session expired. Please try again.',
+                ]));
+            }
+
+            $role       = $oauthData['role'];
+            $deviceName = $oauthData['device_name'];
+            Log::info("OAuth login attempt for role: {$role}, device: {$deviceName}");
+
             $socialUser = Socialite::driver($provider)->stateless()->user();
 
-            // Find or create user
-            $user = $this->findOrCreateUser($socialUser, $provider);
+            $user = $this->findOrCreateUser($socialUser, $provider, $role);
 
-            // Delete existing tokens with the same device name
             $user->tokens()->where('name', $deviceName)->delete();
 
-            // Create a new Sanctum personal access token with 7 days expiration
+            $abilities = [];
+            if ($user->role->name == "admin") {
+                $abilities = ['admin:*'];
+            } else if ($user->role->name == "teacher") {
+                $abilities = [
+                    'courses:create',
+                    'courses:update',
+                    'courses:delete',
+                    'courses:view',
+                    'challenges:create',
+                    'challenges:update',
+                    'challenges:delete',
+                    'challenge:view',
+                    'tests:create',
+                    'tests:update',
+                    'tests:delete',
+                    'tests:view',
+                    'tests:manage',
+                    'students:view',
+                    'submissions:view',
+                ];
+            } else {
+                $abilities = [
+                    'profile:view',
+                    'profile:update',
+                    'courses:view',
+                    'challenge:view',
+                    'activity:view',
+                    'submissions:create',
+                    'submissions:view-own',
+                    'submissions:update-own',
+                ];
+            }
             $expiresAt     = now()->addDays(7);
-            $tokenInstance = $user->createToken($deviceName, ['*'], $expiresAt);
+            $tokenInstance = $user->createToken($deviceName, $abilities, $expiresAt);
             $token         = $tokenInstance->plainTextToken;
 
-            // Update the token's expires_at in the database
             $tokenInstance->accessToken->expires_at = $expiresAt;
             $tokenInstance->accessToken->save();
 
@@ -67,19 +125,18 @@ class SocialAuthController extends Controller
                 $stats = $this->getUserStats($user);
             }
 
-            // Build query parameters
             $queryParams = [
-                'token' => $token,
-                'provider' => $provider,
-                'user_id' => $user->id,
-                'username' => $user->username,
+                'token'      => $token,
+                'provider'   => $provider,
+                'user_id'    => $user->id,
+                'username'   => $user->username,
                 'first_name' => $user->first_name,
-                'last_name' => $user->last_name,
-                'email' => $user->email,
+                'last_name'  => $user->last_name,
+                'email'      => $user->email,
                 'student_id' => $user->student_id,
-                'role' => $user->role->name,
-                'avatar' => $this->getAvatarUrl($user->avatar),
-                'stats' => json_encode($stats),
+                'role'       => $user->role->name,
+                'avatar'     => $this->getAvatarUrl($user->avatar),
+                'stats'      => json_encode($stats),
             ];
 
             return redirect()->away(config('app.frontend_url') . "/auth/callback?" . http_build_query($queryParams));
@@ -95,9 +152,10 @@ class SocialAuthController extends Controller
      *
      * @param \Laravel\Socialite\Contracts\User $socialUser
      * @param string $provider
+     * @param string $role
      * @return User
      */
-    protected function findOrCreateUser($socialUser, $provider)
+    protected function findOrCreateUser($socialUser, $provider, $role)
     {
         // Try to find user by provider and provider_id
         $user = User::where('provider', $provider)
@@ -108,11 +166,9 @@ class SocialAuthController extends Controller
             return $user;
         }
 
-        // Try to find user by email
         $user = User::where('email', $socialUser->getEmail())->first();
 
         if ($user) {
-            // Link the provider to existing user
             $user->update([
                 'provider'    => $provider,
                 'provider_id' => $socialUser->getId(),
@@ -120,7 +176,12 @@ class SocialAuthController extends Controller
             return $user;
         }
 
-        // Create new user
+        $roleId = DB::table('user_roles')->where('name', $role)->value('id');
+
+        if (! $roleId) {
+            $roleId = DB::table('user_roles')->where('name', 'student')->value('id');
+        }
+
         $nameParts = $this->parseUserName($socialUser->getName());
 
         return User::create([
@@ -128,11 +189,11 @@ class SocialAuthController extends Controller
             'email'             => $socialUser->getEmail(),
             'first_name'        => $nameParts['first_name'],
             'last_name'         => $nameParts['last_name'],
-            'avatar'            => $socialUser->getAvatar(), // Store external OAuth avatar URL
+            'avatar'            => $socialUser->getAvatar(),
             'provider'          => $provider,
             'provider_id'       => $socialUser->getId(),
-            'password'          => Hash::make(Str::random(32)), // Random password for OAuth users
-            'role_id'           => 2,                           // Default to 'student' role
+            'password'          => Hash::make(Str::random(32)),
+            'role_id'           => $roleId,
             'total_xp'          => 0,
             'current_level'     => 1,
             'email_verified_at' => now(),
@@ -163,11 +224,9 @@ class SocialAuthController extends Controller
      */
     protected function generateUniqueUsername($baseUsername)
     {
-        // Clean the base username
         $username = Str::slug($baseUsername, '');
         $username = preg_replace('/[^a-zA-Z0-9]/', '', $username);
 
-        // If empty after cleaning, use a default
         if (empty($username)) {
             $username = 'user';
         }
@@ -175,7 +234,6 @@ class SocialAuthController extends Controller
         $originalUsername = $username;
         $counter          = 1;
 
-        // Keep checking until we find a unique username
         while (User::where('username', $username)->exists()) {
             $username = $originalUsername . $counter;
             $counter++;
@@ -232,7 +290,7 @@ class SocialAuthController extends Controller
      */
     protected function getAvatarUrl($avatar): string
     {
-        if (!$avatar) {
+        if (! $avatar) {
             return '';
         }
 
@@ -241,7 +299,7 @@ class SocialAuthController extends Controller
             return $avatar;
         }
 
-        // Otherwise, treat it as a local storage path
+        // Otherwise, treadt it as a local storage path
         return url(Storage::url($avatar));
     }
 }

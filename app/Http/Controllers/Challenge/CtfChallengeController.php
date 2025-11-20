@@ -18,14 +18,18 @@ class CtfChallengeController extends Controller
      */
     public function index(Request $request)
     {
-        // Allow both guests and authenticated users to view challenges
-        // Authenticated users need either admin or challenge:view permission
-        if ($request->user() && !$request->user()->tokenCan('admin:*') && !$request->user()->tokenCan('challenge:view')) {
+        $user = $request->user();
+        if (!$user->tokenCan('admin:*') && !$user->tokenCan('challenge:view')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
         $query = Challenge::query()
             ->where('challengeable_type', CtfChallenge::class);
+        
+        // Teachers can only see their own challenges
+        if ($user->role->name == 'teacher') {
+            $query->where('created_by', $user->id);
+        }
 
         if ($request->has('search')) {
             $searchTerm = $request->input('search');

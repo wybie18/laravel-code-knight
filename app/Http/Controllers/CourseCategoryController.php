@@ -34,7 +34,7 @@ class CourseCategoryController extends Controller
 
     public function getAllCourseCategories()
     {
-        $courseCategories = CourseCategory::select('id', 'name', 'color')->get();
+        $courseCategories = CourseCategory::select('id', 'name')->get();
 
         return CourseCategoryResource::collection($courseCategories)->additional([
             'success' => true,
@@ -48,7 +48,6 @@ class CourseCategoryController extends Controller
     {
         $validated = $request->validate([
             'name'  => 'required|string|max:255|unique:course_categories,name',
-            'color' => 'nullable|string|max:7',
         ]);
 
         if (! $request->user()->tokenCan('admin:*')) {
@@ -84,7 +83,6 @@ class CourseCategoryController extends Controller
         $courseCategory = CourseCategory::findOrFail($id);
         $validated      = $request->validate([
             'name'  => 'required|string|max:255|unique:course_categories,name,' . $courseCategory->id,
-            'color' => 'nullable|string|max:7',
         ]);
 
         if (! $request->user()->tokenCan('admin:*')) {

@@ -18,3 +18,4 @@ require __DIR__ . '/api/gamification.php';
 require __DIR__ . '/api/users.php';
 require __DIR__ . '/api/user.php';
 require __DIR__ . '/api/leaderboards.php';
+require __DIR__ . '/api/tests.php';

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\ProfileController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserActivityController;
 use App\Http\Controllers\UserStatsController;
 use Illuminate\Support\Facades\Route;
@@ -11,4 +12,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/activities/heatmap', [UserActivityController::class, 'getHeatmap']);
     Route::get('/my-achievements', [UserStatsController::class, 'getUserAchievements']);
     Route::get('/my-rank', [UserStatsController::class, 'getUserRank']);
+
+    Route::get('/dashboard', [DashboardController::class, 'index']);
 });

@@ -8,7 +8,6 @@ class SkillTag extends Model
 {
     protected $fillable = [
         'name',
-        'color',
     ];
 
     public function courses()

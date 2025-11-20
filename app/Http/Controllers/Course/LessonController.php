@@ -238,7 +238,6 @@ class LessonController extends Controller
     public function markCompleted(Lesson $lesson)
     {
         $this->progressService->markLessonCompleted(Auth::user(), $lesson);
-        $this->levelService->addXp(Auth::user(), $lesson->exp_reward, null, $lesson);
         return response()->json([
             'success' => true,
             'data'    => $this->progressService->getNextContentData(Auth::user(), $lesson),

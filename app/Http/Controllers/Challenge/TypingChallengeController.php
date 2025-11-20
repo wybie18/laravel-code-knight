@@ -17,9 +17,8 @@ class TypingChallengeController extends Controller
      */
     public function index(Request $request)
     {
-        // Allow both guests and authenticated users to view challenges
-        // Authenticated users need either admin or challenge:view permission
-        if ($request->user() && !$request->user()->tokenCan('admin:*') && !$request->user()->tokenCan('challenge:view')) {
+        $user = $request->user();
+        if (!$user->tokenCan('admin:*') && !$user->tokenCan('challenge:view')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
@@ -28,6 +27,11 @@ class TypingChallengeController extends Controller
             'difficulty',
             'challengeable.programmingLanguage',
         ])->where('challengeable_type', TypingChallenge::class);
+        
+        // Teachers can only see their own challenges
+        if ($user->role->name == 'teacher') {
+            $query->where('created_by', $user->id);
+        }
 
         if ($request->has('search')) {
             $searchTerm = $request->input('search');
@@ -161,9 +165,7 @@ class TypingChallengeController extends Controller
      */
     public function show(string $slug)
     {
-        // Allow both guests and authenticated users to view challenges
-        // Authenticated users need either admin or challenge:view permission
-        if (request()->user() && !request()->user()->tokenCan('admin:*') && !request()->user()->tokenCan('challenge:view')) {
+        if (!request()->user()->tokenCan('admin:*') && !request()->user()->tokenCan('challenge:view')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 

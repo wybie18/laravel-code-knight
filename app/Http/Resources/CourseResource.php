@@ -15,6 +15,10 @@ class CourseResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $user = $request->user();
+        $isCreator = $user && $this->created_by === $user->id;
+        $isAdmin = $user && $user->tokenCan('admin:*');
+
         return [
             'id'                   => $this->id,
             'title'                => $this->title,
@@ -27,6 +31,13 @@ class CourseResource extends JsonResource
             'exp_reward'           => $this->exp_reward,
             'estimated_duration'   => $this->estimated_duration,
             'is_published'         => $this->is_published,
+            'visibility'           => $this->visibility,
+            
+            'course_code'          => $this->when(
+                $isCreator || $isAdmin || ($user && $this->whenLoaded('userEnrollment')),
+                $this->course_code
+            ),
+            
             'created_at'           => $this->created_at,
             'updated_at'           => $this->updated_at,
 
@@ -38,6 +49,18 @@ class CourseResource extends JsonResource
             'enrollment'           => new CourseEnrollmentResource($this->whenLoaded('userEnrollment')),
             'progress'             => new UserCourseProgressResource($this->whenLoaded('currentUserProgress')),
             'programming_language' => new ProgrammingLanguageResource($this->whenLoaded('programmingLanguage')),
+            
+            'creator'              => $this->when(
+                $this->relationLoaded('creator'),
+                function () {
+                    return [
+                        'id' => $this->creator->id,
+                        'username' => $this->creator->username,
+                        'first_name' => $this->creator->first_name,
+                        'last_name' => $this->creator->last_name,
+                    ];
+                }
+            ),
 
             // Computed fields
             'lessons_count'        => $this->when($this->relationLoaded('modules'), function () {
@@ -47,6 +70,9 @@ class CourseResource extends JsonResource
             }),
             'modules_count'        => $this->whenHas('modules_count'),
             'enrolled_users_count' => $this->whenHas('enrollments_count'),
+            
+            // Permissions
+            'is_creator'           => $isCreator,
         ];
     }
 }

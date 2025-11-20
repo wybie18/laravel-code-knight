@@ -104,6 +104,23 @@ class User extends Authenticatable
         return $this->hasMany(ChallengeSubmission::class);
     }
 
+    // Test Relationships
+    public function createdTests()
+    {
+        return $this->hasMany(Test::class, 'teacher_id');
+    }
+
+    public function assignedTests()
+    {
+        return $this->belongsToMany(Test::class, 'test_students', 'student_id', 'test_id')
+            ->withTimestamps();
+    }
+
+    public function testAttempts()
+    {
+        return $this->hasMany(TestAttempt::class, 'student_id');
+    }
+
     /**
      * Get the attributes that should be cast.
      *
