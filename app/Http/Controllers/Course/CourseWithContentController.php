@@ -146,7 +146,7 @@ class CourseWithContentController extends Controller
                             ]);
 
                             if ($activityData['type'] === 'code' && isset($activityData['problem'])) {
-                                $testCasesJson = json_encode($activityData['problem']['test_cases']);
+                                $testCasesJson = $activityData['problem']['test_cases'];
 
                                 $codingProblem = CodingActivityProblem::create([
                                     'problem_statement' => $activityData['problem']['problem_statement'],
@@ -591,7 +591,7 @@ class CourseWithContentController extends Controller
             }
 
             if ($activityData['type'] === 'code' && isset($activityData['problem'])) {
-                $testCasesJson = json_encode($activityData['problem']['test_cases']);
+                $testCasesJson = $activityData['problem']['test_cases'];
 
                 if ($activity->codingActivityProblem) {
                     $activity->codingActivityProblem->update([
