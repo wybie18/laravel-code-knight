@@ -1136,6 +1136,7 @@ class TestController extends Controller
                     'percentage'      => $bestAttempt ? ($test->total_points > 0 ? round(($bestAttempt->total_score / $test->total_points) * 100, 1) : 0) : null,
                     'status'          => $latestAttempt ? $latestAttempt->status : 'not_started',
                     'last_attempt_at' => $latestAttempt ? $latestAttempt->created_at : null,
+                    'latest_attempt_id' => $latestAttempt ? $latestAttempt->id : null,
                 ],
             ];
         });
