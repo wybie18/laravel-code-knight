@@ -9,6 +9,7 @@ use App\Models\Test;
 use App\Models\TestAttempt;
 use App\Models\TestItem;
 use App\Models\TestItemSubmission;
+use App\Services\TestCodeExecutionService;
 use App\Services\TestService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -1145,5 +1146,35 @@ class TestController extends Controller
             'success' => true,
             'data'    => $results,
         ]);
+    }
+
+    public function executeCode(Request $request, Test $test, TestAttempt $attempt, TestItem $testItem)
+    {
+        $validatedData = $request->validate([
+            'language_id' => 'required|integer|exists:programming_languages,id',
+            'user_code'   => 'required|string',
+        ]);
+
+        $codeExecutionService = app(TestCodeExecutionService::class);
+
+        try {
+            $result = $codeExecutionService->executeCode(
+                $testItem->id,
+                $validatedData['language_id'],
+                $validatedData['user_code']
+            );
+
+            return response()->json([
+                'success' => true,
+                'data'    => $result['results'],
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Code execution failed',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 }
