@@ -25,7 +25,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/{test:slug}/attempts/{attempt}', [TestController::class, 'getAttempt']);
         Route::post('/{test:slug}/attempts/{attempt}/items/{testItem}/submit', [TestController::class, 'submitItemAnswer']);
         Route::post('/{test:slug}/attempts/{attempt}/submit', [TestController::class, 'submitTest']);
-        Route::get('/{test:slug}/attempts/{attempt}/items/{testItem}/execute', [TestController::class, 'executeCode']);
+        Route::post('/{test:slug}/attempts/{attempt}/items/{testItem}/execute', [TestController::class, 'executeCode']);
     });
 
     // Teacher & Admin Routes - Test Management
