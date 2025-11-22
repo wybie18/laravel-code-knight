@@ -17,6 +17,13 @@ use Illuminate\Support\Str;
 
 class TestService
 {
+    private TestCodeExecutionService $testCodeExecutionService;
+
+    public function __construct(TestCodeExecutionService $testCodeExecutionService)
+    {
+        $this->testCodeExecutionService = $testCodeExecutionService;
+    }
+
     /**
      * Check if user can access the test
      */
@@ -118,7 +125,29 @@ class TestService
             ];
         }
 
-        // Coding challenges and essay questions require manual grading
+        if ($itemable instanceof CodingChallenge) {
+            $answerData = is_string($answer) ? json_decode($answer, true) : $answer;
+
+            if (is_array($answerData) && !empty($answerData['code']) && !empty($answerData['language_id'])) {
+                try {
+                    $results = $this->testCodeExecutionService->runAllTests(
+                        $itemable,
+                        $answerData['language_id'],
+                        $answerData['code']
+                    );
+
+                    return [
+                        'score' => $results['passed'] ? $testItem->points : 0,
+                        'is_correct' => $results['passed'],
+                    ];
+                } catch (\Exception $e) {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        // essay questions require manual grading
         return null;
     }
 
