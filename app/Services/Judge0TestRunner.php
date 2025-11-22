@@ -171,6 +171,9 @@ class Judge0TestRunner
         $results   = [];
 
         if ($numTestsToRun !== null) {
+            if ($numTestsToRun > count($testCases)) {
+                $numTestsToRun = count($testCases);
+            }
             $testCasesToRun = array_slice($testCases, 0, $numTestsToRun);
         } else {
             $testCasesToRun = $testCases;
@@ -469,7 +472,7 @@ class Judge0TestRunner
             } else {
                  $inputArray = is_string($input) ? json_decode($input, true) : $input;
                 $inputValues = $this->formatInputForJava($inputArray);
-                
+                Log::info("Input Values for Java Activity: " . $inputValues);
                 if (preg_match('/(\s*public\s+static\s+void\s+main\s*\([^)]*\)\s*\{)/', $userCode, $matches, PREG_OFFSET_CAPTURE)) {
                     $mainMethodStart = $matches[1][1] + strlen($matches[1][0]);
                     return substr($userCode, 0, $mainMethodStart) . "\n" . $inputValues . "\n" . substr($userCode, $mainMethodStart);
