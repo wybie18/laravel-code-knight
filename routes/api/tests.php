@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::middleware(['auth:sanctum'])->group(function () {
-    
+
     // Student Routes - Tests assigned to them
     Route::prefix('my-tests')->group(function () {
         Route::get('/', [TestController::class, 'myTests']);
@@ -25,31 +25,32 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/{test:slug}/attempts/{attempt}', [TestController::class, 'getAttempt']);
         Route::post('/{test:slug}/attempts/{attempt}/items/{testItem}/submit', [TestController::class, 'submitItemAnswer']);
         Route::post('/{test:slug}/attempts/{attempt}/submit', [TestController::class, 'submitTest']);
+        Route::get('/{test:slug}/attempts/{attempt}/items/{testItem}/execute', [TestController::class, 'executeCode']);
     });
 
     // Teacher & Admin Routes - Test Management
     Route::middleware(['ability:tests:view,admin:*'])->prefix('tests')->group(function () {
-        
+
         // List and view tests
         Route::get('/', [TestController::class, 'index']);
         Route::get('/{test:slug}', [TestController::class, 'show']);
-        
+
         // Create tests
         Route::middleware(['ability:tests:create,admin:*'])->group(function () {
             Route::post('/', [TestController::class, 'store']);
         });
-        
+
         // Update tests
         Route::middleware(['ability:tests:update,admin:*'])->group(function () {
             Route::put('/{test:slug}', [TestController::class, 'update']);
             Route::patch('/{test:slug}', [TestController::class, 'update']);
         });
-        
+
         // Delete tests
         Route::middleware(['ability:tests:delete,admin:*'])->group(function () {
             Route::delete('/{test:slug}', [TestController::class, 'destroy']);
         });
-        
+
         // Test Items Management
         Route::middleware(['ability:tests:manage,admin:*'])->prefix('{test:slug}/items')->group(function () {
             Route::post('/', [TestController::class, 'addItems']);
@@ -61,14 +62,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::patch('/{testItem}', [TestController::class, 'updateItem']);
             Route::delete('/{testItem}', [TestController::class, 'removeItem']);
         });
-        
+
         // Student Assignment Management
         Route::middleware(['ability:tests:manage,admin:*'])->prefix('{test:slug}/students')->group(function () {
             Route::get('/', [TestController::class, 'getStudents']);
             Route::post('/assign', [TestController::class, 'assignStudents']);
             Route::post('/remove', [TestController::class, 'removeStudents']);
         });
-        
+
         // Grading and Attempt Management
         Route::middleware(['ability:tests:manage,admin:*'])->prefix('{test:slug}')->group(function () {
             Route::get('/results', [TestController::class, 'getResults']);
