@@ -30,27 +30,27 @@ class Judge0TestRunner
         try {
             $submissionToken = $this->submitPlaygroundCode($userCode, $language->language_id, $input);
 
-            if (!$submissionToken) {
+            if (! $submissionToken) {
                 return [
-                    'success' => false,
-                    'error' => 'Failed to submit code for execution',
-                    'output' => null,
-                    'stderr' => null,
+                    'success'        => false,
+                    'error'          => 'Failed to submit code for execution',
+                    'output'         => null,
+                    'stderr'         => null,
                     'execution_time' => null,
-                    'memory_usage' => null,
+                    'memory_usage'   => null,
                 ];
             }
 
             $judgeResult = $this->getSubmissionResult($submissionToken);
 
-            if (!$judgeResult) {
+            if (! $judgeResult) {
                 return [
-                    'success' => false,
-                    'error' => 'Failed to get execution result',
-                    'output' => null,
-                    'stderr' => null,
+                    'success'        => false,
+                    'error'          => 'Failed to get execution result',
+                    'output'         => null,
+                    'stderr'         => null,
                     'execution_time' => null,
-                    'memory_usage' => null,
+                    'memory_usage'   => null,
                 ];
             }
 
@@ -58,12 +58,12 @@ class Judge0TestRunner
 
         } catch (\Exception $e) {
             return [
-                'success' => false,
-                'error' => $e->getMessage(),
-                'output' => null,
-                'stderr' => null,
+                'success'        => false,
+                'error'          => $e->getMessage(),
+                'output'         => null,
+                'stderr'         => null,
                 'execution_time' => null,
-                'memory_usage' => null,
+                'memory_usage'   => null,
             ];
         }
     }
@@ -74,8 +74,8 @@ class Judge0TestRunner
     private function processPlaygroundResult(array $judgeResult): array
     {
         $statusId = $judgeResult['status']['id'];
-        $stdout = null;
-        $stderr = null;
+        $stdout   = null;
+        $stderr   = null;
 
         if (isset($judgeResult['stdout']) && $judgeResult['stdout']) {
             $stdout = $this->safeDecode($judgeResult['stdout']);
@@ -87,24 +87,24 @@ class Judge0TestRunner
 
         if ($statusId === 3) {
             return [
-                'success' => true,
-                'error' => null,
-                'output' => $stdout,
-                'stderr' => $stderr,
+                'success'        => true,
+                'error'          => null,
+                'output'         => $stdout,
+                'stderr'         => $stderr,
                 'execution_time' => $judgeResult['time'] ?? null,
-                'memory_usage' => $judgeResult['memory'] ?? null,
-                'status' => $judgeResult['status']['description'] ?? 'Completed',
+                'memory_usage'   => $judgeResult['memory'] ?? null,
+                'status'         => $judgeResult['status']['description'] ?? 'Completed',
             ];
         }
 
         return [
-            'success' => false,
-            'error' => $judgeResult['status']['description'] ?? 'Unknown execution error',
-            'output' => $stdout,
-            'stderr' => $stderr,
+            'success'        => false,
+            'error'          => $judgeResult['status']['description'] ?? 'Unknown execution error',
+            'output'         => $stdout,
+            'stderr'         => $stderr,
             'execution_time' => $judgeResult['time'] ?? null,
-            'memory_usage' => $judgeResult['memory'] ?? null,
-            'status' => $judgeResult['status']['description'] ?? 'Failed',
+            'memory_usage'   => $judgeResult['memory'] ?? null,
+            'status'         => $judgeResult['status']['description'] ?? 'Failed',
         ];
     }
 
@@ -195,19 +195,19 @@ class Judge0TestRunner
         }
 
         $public_cases_to_show = 3;
-        $publicResults = array_slice($results, 0, $public_cases_to_show);
-        $allPassed = collect($results)->every('passed');
+        $publicResults        = array_slice($results, 0, $public_cases_to_show);
+        $allPassed            = collect($results)->every('passed');
 
-        if (!$allPassed && count($results) > $public_cases_to_show) {
+        if (! $allPassed && count($results) > $public_cases_to_show) {
             $firstFailedResult = collect($results)->firstWhere('passed', false);
-            $firstFailedIndex = array_search($firstFailedResult, $results);
+            $firstFailedIndex  = array_search($firstFailedResult, $results);
 
             if ($firstFailedIndex >= $public_cases_to_show) {
-                $publicResults = $publicResults;
+                $publicResults   = $publicResults;
                 $publicResults[] = [
                     'test_case' => 'Hidden Test',
-                    'passed' => false,
-                    'error' => 'One or more hidden test cases failed.',
+                    'passed'    => false,
+                    'error'     => 'One or more hidden test cases failed.',
                 ];
             }
         }
@@ -232,7 +232,7 @@ class Judge0TestRunner
     ): array {
         try {
             $cleanUserCode = $this->cleanText($userCode);
-            
+
             $completeCode = $this->prepareCodeWithTestCase($cleanUserCode, $language, $testCase, $isActivity);
 
             $submissionToken = $this->submitCode($completeCode, $language->language_id);
@@ -261,20 +261,20 @@ class Judge0TestRunner
     {
         // Remove BOM if present
         $text = str_replace("\xEF\xBB\xBF", '', $text);
-        
+
         // Normalize line endings to \n
         $text = str_replace(["\r\n", "\r"], "\n", $text);
-        
+
         // Remove any null bytes or other problematic characters
         $text = str_replace("\0", '', $text);
-        
+
         // Ensure UTF-8 encoding
-        if (!mb_check_encoding($text, 'UTF-8')) {
+        if (! mb_check_encoding($text, 'UTF-8')) {
             $text = mb_convert_encoding($text, 'UTF-8', mb_detect_encoding($text));
         }
-        
+
         $text = trim($text);
-        
+
         return $text;
     }
 
@@ -314,11 +314,11 @@ class Judge0TestRunner
         if (empty($input) || $input === '' || $input === '""') {
             return false;
         }
-        
+
         if (is_array($input) && empty($input)) {
             return false;
         }
-        
+
         return true;
     }
 
@@ -326,21 +326,21 @@ class Judge0TestRunner
      * Check if user code has a Solution class
      */
     private function hasSolutionClass(string $userCode, string $languageName): bool
-    {   
+    {
         switch ($languageName) {
             case 'python':
-                return preg_match('/class\s+Solution\s*[\(:]/i', $userCode) && 
-                       preg_match('/def\s+main\s*\(/i', $userCode);
-                
+                return preg_match('/class\s+Solution\s*[\(:]/i', $userCode) &&
+                preg_match('/def\s+main\s*\(/i', $userCode);
+
             case 'javascript':
             case 'node.js':
-                return preg_match('/class\s+Solution\s*\{/i', $userCode) && 
-                       preg_match('/main\s*\(/i', $userCode);
-                
+                return preg_match('/class\s+Solution\s*\{/i', $userCode) &&
+                preg_match('/main\s*\(/i', $userCode);
+
             case 'java':
-                return preg_match('/class\s+Solution\s*\{/i', $userCode) && 
-                       preg_match('/public\s+\w+\s+main\s*\(/i', $userCode);
-                
+                return preg_match('/class\s+Solution\s*\{/i', $userCode) &&
+                preg_match('/public\s+\w+\s+main\s*\(/i', $userCode);
+
             default:
                 return false;
         }
@@ -351,23 +351,30 @@ class Judge0TestRunner
      */
     private function preparePythonCode(string $userCode, $input, bool $isActivity = false): string
     {
+        $definitions      = $this->getHiddenDefinitions('python');
         $hasSolutionClass = $this->hasSolutionClass($userCode, 'python');
-        if ($isActivity && !$hasSolutionClass) {
-            if (!$this->hasInput($input)) {
-                return $userCode;
-            } else {
-                $inputArray = is_string($input) ? json_decode($input, true) : $input;
-                $inputValues = $this->formatInputForPython($inputArray);
-                
+
+        if ($isActivity && ! $hasSolutionClass) {
+            if (! $this->hasInput($input)) {
                 return <<<PYTHON
+                {$definitions}
+                {$userCode}
+                PYTHON;
+            } else {
+                $inputArray  = is_string($input) ? json_decode($input, true) : $input;
+                $inputValues = $this->formatInputForPython($inputArray, $userCode);
+
+                return <<<PYTHON
+                {$definitions}
                 {$inputValues}
                 {$userCode}
                 PYTHON;
             }
         }
 
-        if (!$this->hasInput($input)) {
+        if (! $this->hasInput($input)) {
             $testCode = <<<PYTHON
+            {$definitions}
             {$userCode}
 
             # Test execution
@@ -381,10 +388,11 @@ class Judge0TestRunner
                 sys.exit(1)
             PYTHON;
         } else {
-            $inputArray = is_string($input) ? json_decode($input, true) : $input;
-            $inputValues = $this->formatInputForPython($inputArray);
+            $inputArray  = is_string($input) ? json_decode($input, true) : $input;
+            $inputValues = $this->formatInputForPython($inputArray, $userCode);
 
             $testCode = <<<PYTHON
+            {$definitions}
             {$userCode}
 
             # Test execution
@@ -408,24 +416,30 @@ class Judge0TestRunner
      */
     private function prepareJavaScriptCode(string $userCode, $input, bool $isActivity = false): string
     {
+        $definitions      = $this->getHiddenDefinitions('javascript');
         $hasSolutionClass = $this->hasSolutionClass($userCode, 'javascript');
-        
-        if ($isActivity && !$hasSolutionClass) {
-            if (!$this->hasInput($input)) {
-                return $userCode;
-            } else {
-                $inputArray = is_string($input) ? json_decode($input, true) : $input;
-                $inputValues = $this->formatInputForJavaScript($inputArray);
-                
+
+        if ($isActivity && ! $hasSolutionClass) {
+            if (! $this->hasInput($input)) {
                 return <<<JAVASCRIPT
+                {$definitions}
+                {$userCode}
+                JAVASCRIPT;
+            } else {
+                $inputArray  = is_string($input) ? json_decode($input, true) : $input;
+                $inputValues = $this->formatInputForJavaScript($inputArray, $userCode);
+
+                return <<<JAVASCRIPT
+                {$definitions}
                 {$inputValues}
                 {$userCode}
                 JAVASCRIPT;
             }
         }
 
-        if (!$this->hasInput($input)) {
+        if (! $this->hasInput($input)) {
             $testCode = <<<JAVASCRIPT
+            {$definitions}
             {$userCode}
 
             try {
@@ -438,10 +452,11 @@ class Judge0TestRunner
             }
             JAVASCRIPT;
         } else {
-            $inputArray = is_string($input) ? json_decode($input, true) : $input;
-            $inputValues = $this->formatInputForJavaScript($inputArray);
+            $inputArray  = is_string($input) ? json_decode($input, true) : $input;
+            $inputValues = $this->formatInputForJavaScript($inputArray, $userCode);
 
             $testCode = <<<JAVASCRIPT
+            {$definitions}
             {$userCode}
 
             {$inputValues}
@@ -464,25 +479,36 @@ class Judge0TestRunner
      */
     private function prepareJavaCode(string $userCode, $input, bool $isActivity = false): string
     {
+        $definitions = $this->getHiddenDefinitions('java');
+
+        // Check if user is using Main class with main method (Standard Java entry point)
+        // If so, we return the code as is, assuming they handle execution themselves.
+        // Note: This currently doesn't support injecting inputs via stdin for Main class,
+        // so it works best for no-input problems or if we update submitCode to handle stdin.
+        if (strpos($userCode, 'class Main') !== false && strpos($userCode, 'public static void main') !== false) {
+            return $userCode . "\n\n" . $definitions;
+        }
+
         $hasSolutionClass = $this->hasSolutionClass($userCode, 'java');
 
-        if ($isActivity && !$hasSolutionClass) {
-            if (!$this->hasInput($input)) {
-                return $userCode;
+        if ($isActivity && ! $hasSolutionClass) {
+            if (! $this->hasInput($input)) {
+                return $userCode . "\n\n" . $definitions;
             } else {
-                 $inputArray = is_string($input) ? json_decode($input, true) : $input;
-                $inputValues = $this->formatInputForJava($inputArray);
+                $inputArray  = is_string($input) ? json_decode($input, true) : $input;
+                $inputValues = $this->formatInputForJava($inputArray, $userCode);
                 Log::info("Input Values for Java Activity: " . $inputValues);
                 if (preg_match('/(\s*public\s+static\s+void\s+main\s*\([^)]*\)\s*\{)/', $userCode, $matches, PREG_OFFSET_CAPTURE)) {
                     $mainMethodStart = $matches[1][1] + strlen($matches[1][0]);
-                    return substr($userCode, 0, $mainMethodStart) . "\n" . $inputValues . "\n" . substr($userCode, $mainMethodStart);
+                    $code            = substr($userCode, 0, $mainMethodStart) . "\n" . $inputValues . "\n" . substr($userCode, $mainMethodStart);
+                    return $code . "\n\n" . $definitions;
                 }
-                
-                return $inputValues . "\n" . $userCode;
+
+                return $inputValues . "\n" . $userCode . "\n\n" . $definitions;
             }
         }
 
-        if (!$this->hasInput($input)) {
+        if (! $this->hasInput($input)) {
             $mainMethod = <<<JAVA
 
                 public static void main(String[] args) {
@@ -497,8 +523,8 @@ class Judge0TestRunner
                 }
             JAVA;
         } else {
-            $inputArray = is_string($input) ? json_decode($input, true) : $input;
-            $inputValues = $this->formatInputForJava($inputArray);
+            $inputArray  = is_string($input) ? json_decode($input, true) : $input;
+            $inputValues = $this->formatInputForJava($inputArray, $userCode);
 
             $mainMethod = <<<JAVA
 
@@ -518,9 +544,9 @@ class Judge0TestRunner
 
         $lastBrace = strrpos($userCode, '}');
         if ($lastBrace !== false) {
-            return substr($userCode, 0, $lastBrace) . $mainMethod . "\n}";
+            return substr($userCode, 0, $lastBrace) . $mainMethod . "\n}" . "\n\n" . $definitions;
         }
-        
+
         throw new \Exception("Invalid Java class structure");
     }
 
@@ -545,31 +571,49 @@ class Judge0TestRunner
     /**
      * Format input values for different languages
      */
-    private function formatInputForPython(array $input): string
+    private function formatInputForPython(array $input, string $userCode = ''): string
     {
         $assignments = [];
         foreach ($input as $key => $value) {
-            $assignments[] = "{$key} = " . $this->pythonValue($value);
+            // Check if user code expects ListNode for this variable
+            if (preg_match("/{$key}\s*:\s*(?:Optional\[)?ListNode(?:\])?/", $userCode)) {
+                $pythonValue   = $this->pythonValue($value);
+                $assignments[] = "{$key} = list_to_ll({$pythonValue})";
+            } else {
+                $assignments[] = "{$key} = " . $this->pythonValue($value);
+            }
         }
         return implode("\n", $assignments);
     }
 
-    private function formatInputForJavaScript(array $input): string
+    private function formatInputForJavaScript(array $input, string $userCode = ''): string
     {
         $assignments = [];
         foreach ($input as $key => $value) {
-            $assignments[] = "const {$key} = " . json_encode($value, JSON_UNESCAPED_UNICODE) . ";";
+            // Check for JSDoc @param {ListNode} key
+            if (preg_match("/@param\s+\{ListNode\}\s+{$key}/", $userCode)) {
+                $jsValue       = json_encode($value, JSON_UNESCAPED_UNICODE);
+                $assignments[] = "const {$key} = arrayToListNode({$jsValue});";
+            } else {
+                $assignments[] = "const {$key} = " . json_encode($value, JSON_UNESCAPED_UNICODE) . ";";
+            }
         }
         return implode("\n", $assignments);
     }
 
-    private function formatInputForJava(array $input): string
+    private function formatInputForJava(array $input, string $userCode = ''): string
     {
         $assignments = [];
         foreach ($input as $key => $value) {
-            $type          = $this->getJavaType($value);
-            $javaValue     = $this->javaValue($value);
-            $assignments[] = "            {$type} {$key} = {$javaValue};";
+            // Check if user code expects ListNode for this variable
+            if (preg_match("/ListNode\s+{$key}/", $userCode)) {
+                $javaValue     = $this->javaValue($value);
+                $assignments[] = "            ListNode {$key} = ListNode.fromArray({$javaValue});";
+            } else {
+                $type          = $this->getJavaType($value);
+                $javaValue     = $this->javaValue($value);
+                $assignments[] = "            {$type} {$key} = {$javaValue};";
+            }
         }
         return implode("\n", $assignments);
     }
@@ -662,7 +706,7 @@ class Judge0TestRunner
 
         $headers = [
             'Content-Type' => 'application/json',
-            'Accept' => 'application/json'
+            'Accept'       => 'application/json',
         ];
 
         if ($this->judge0ApiKey) {
@@ -696,7 +740,7 @@ class Judge0TestRunner
 
         $headers = [
             'Content-Type' => 'application/json',
-            'Accept' => 'application/json'
+            'Accept'       => 'application/json',
         ];
 
         if ($this->judge0ApiKey) {
@@ -704,9 +748,9 @@ class Judge0TestRunner
         }
 
         $payload = [
-            'source_code' => $encodedCode,
-            'language_id' => $languageId,
-            'stdin' => $input ?? '',
+            'source_code'     => $encodedCode,
+            'language_id'     => $languageId,
+            'stdin'           => $input ?? '',
             'expected_output' => null,
         ];
 
@@ -732,7 +776,7 @@ class Judge0TestRunner
 
         $headers = [
             'Content-Type' => 'application/json',
-            'Accept' => 'application/json'
+            'Accept'       => 'application/json',
         ];
 
         if ($this->judge0ApiKey) {
@@ -771,11 +815,11 @@ class Judge0TestRunner
         if ($statusId !== 3) {
             $stderr = null;
             $stdout = null;
-            
+
             if (isset($judgeResult['stderr']) && $judgeResult['stderr']) {
                 $stderr = $this->safeDecode($judgeResult['stderr']);
             }
-            
+
             if (isset($judgeResult['stdout']) && $judgeResult['stdout']) {
                 $stdout = $this->safeDecode($judgeResult['stdout']);
             }
@@ -798,7 +842,7 @@ class Judge0TestRunner
         if ($actualOutput === "True" || $actualOutput === "False") {
             $actualOutput = strtolower($actualOutput) === "true";
         }
-        
+
         $expectedOutput = $testCase['expected_output'];
 
         // Parse and compare outputs
@@ -825,13 +869,13 @@ class Judge0TestRunner
         }
 
         $decoded = base64_decode($content, true);
-        
+
         if ($decoded === false) {
             return $content; // Return original if not valid base64
         }
 
         // Ensure UTF-8 encoding
-        if (!mb_check_encoding($decoded, 'UTF-8')) {
+        if (! mb_check_encoding($decoded, 'UTF-8')) {
             $decoded = mb_convert_encoding($decoded, 'UTF-8', mb_detect_encoding($decoded) ?: 'UTF-8');
         }
 
@@ -844,7 +888,7 @@ class Judge0TestRunner
     private function compareOutputs($actual, $expected): bool
     {
         // Parse both outputs
-        $actualParsed = $this->tryParseOutput($this->cleanText($actual));
+        $actualParsed   = $this->tryParseOutput($this->cleanText($actual));
         $expectedParsed = $this->tryParseOutput($this->cleanText($expected));
 
         return $this->deepEquals($actualParsed, $expectedParsed);
@@ -865,17 +909,25 @@ class Judge0TestRunner
         }
 
         // Normalize string
-        $cleaned = trim((string)$output);
-        $lower = strtolower($cleaned);
+        $cleaned = trim((string) $output);
+        $lower   = strtolower($cleaned);
 
         // Python / JSON style booleans and nulls
-        if ($lower === 'true') return true;
-        if ($lower === 'false') return false;
-        if ($lower === 'none' || $lower === 'null') return null;
+        if ($lower === 'true') {
+            return true;
+        }
+
+        if ($lower === 'false') {
+            return false;
+        }
+
+        if ($lower === 'none' || $lower === 'null') {
+            return null;
+        }
 
         // Numeric?
         if (is_numeric($cleaned)) {
-            return strpos($cleaned, '.') !== false ? (float)$cleaned : (int)$cleaned;
+            return strpos($cleaned, '.') !== false ? (float) $cleaned : (int) $cleaned;
         }
 
         // Looks like JSON?
@@ -896,7 +948,6 @@ class Judge0TestRunner
 
         return $cleaned;
     }
-
 
     /**
      * Deep comparison of two values
@@ -928,13 +979,13 @@ class Judge0TestRunner
 
             $keysA = array_keys($a);
             $keysB = array_keys($b);
-            
+
             if ($keysA !== $keysB) {
                 return false;
             }
 
             foreach ($a as $key => $value) {
-                if (!array_key_exists($key, $b) || !$this->deepEquals($value, $b[$key])) {
+                if (! array_key_exists($key, $b) || ! $this->deepEquals($value, $b[$key])) {
                     return false;
                 }
             }
@@ -1012,5 +1063,114 @@ class Judge0TestRunner
         }
 
         return $output;
+    }
+
+    /**
+     * Get hidden data structure definitions (ListNode, TreeNode, etc.)
+     */
+    private function getHiddenDefinitions(string $language): string
+    {
+        $language = strtolower($language);
+
+        switch ($language) {
+            case 'python':
+                return <<<PYTHON
+class ListNode:
+    def __init__(self, val=0, next=None):
+        self.val = val
+        self.next = next
+    def __repr__(self):
+        return f"ListNode({self.val})"
+
+class TreeNode:
+    def __init__(self, val=0, left=None, right=None):
+        self.val = val
+        self.left = left
+        self.right = right
+
+# Helper to convert List to LinkedList (for local testing if needed)
+def list_to_ll(arr):
+    dummy = ListNode(0)
+    curr = dummy
+    for val in arr:
+        curr.next = ListNode(val)
+        curr = curr.next
+    return dummy.next
+PYTHON;
+
+            case 'javascript':
+            case 'node.js':
+                return <<<JAVASCRIPT
+class ListNode {
+    constructor(val = 0, next = null) {
+        this.val = val;
+        this.next = next;
+    }
+}
+
+class TreeNode {
+    constructor(val = 0, left = null, right = null) {
+        this.val = val;
+        this.left = left;
+        this.right = right;
+    }
+}
+
+function arrayToListNode(arr) {
+    if (!arr || arr.length === 0) return null;
+    let dummy = new ListNode(0);
+    let curr = dummy;
+    for (let val of arr) {
+        curr.next = new ListNode(val);
+        curr = curr.next;
+    }
+    return dummy.next;
+}
+JAVASCRIPT;
+
+            case 'java':
+                // For Java, these must be non-public classes or static inner classes.
+                // We will append these OUTSIDE the Main/Solution class.
+                return <<<JAVA
+class ListNode {
+    int val;
+    ListNode next;
+    ListNode() {}
+    ListNode(int val) { this.val = val; }
+    ListNode(int val, ListNode next) { this.val = val; this.next = next; }
+    @Override
+    public String toString() { return "ListNode(" + val + ")"; }
+
+    public static ListNode fromArray(Object[] arr) {
+        if (arr == null || arr.length == 0) return null;
+        ListNode dummy = new ListNode(0);
+        ListNode curr = dummy;
+        for (Object val : arr) {
+            if (val instanceof Integer) {
+                curr.next = new ListNode((int)val);
+                curr = curr.next;
+            }
+        }
+        return dummy.next;
+    }
+}
+
+class TreeNode {
+    int val;
+    TreeNode left;
+    TreeNode right;
+    TreeNode() {}
+    TreeNode(int val) { this.val = val; }
+    TreeNode(int val, TreeNode left, TreeNode right) {
+        this.val = val;
+        this.left = left;
+        this.right = right;
+    }
+}
+JAVA;
+
+            default:
+                return '';
+        }
     }
 }
