@@ -8,6 +8,7 @@ use App\Models\CodingChallenge;
 use App\Models\CtfChallenge;
 use App\Models\TypingChallenge;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class LeaderboardService
 {
@@ -37,7 +38,7 @@ class LeaderboardService
                 'username' => $user->username,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
-                'avatar' => $user->avatar,
+                'avatar' => $this->getAvatarUrl($user->avatar),
                 'total_xp' => $user->total_xp,
                 'level' => $user->current_level,
             ];
@@ -75,7 +76,7 @@ class LeaderboardService
                 'username' => $user->username,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
-                'avatar' => $user->avatar,
+                'avatar' => $this->getAvatarUrl($user->avatar),
                 'challenges_solved' => $user->challenges_solved,
                 'total_points' => $user->total_points ?? 0,
             ];
@@ -113,7 +114,7 @@ class LeaderboardService
                 'username' => $user->username,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
-                'avatar' => $user->avatar,
+                'avatar' => $this->getAvatarUrl($user->avatar),
                 'challenges_solved' => $user->challenges_solved,
                 'total_points' => $user->total_points ?? 0,
             ];
@@ -151,7 +152,7 @@ class LeaderboardService
                 'username' => $user->username,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
-                'avatar' => $user->avatar,
+                'avatar' => $this->getAvatarUrl($user->avatar),
                 'challenges_solved' => $user->challenges_solved,
                 'total_points' => $user->total_points ?? 0,
             ];
@@ -188,7 +189,7 @@ class LeaderboardService
                 'username' => $user->username,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
-                'avatar' => $user->avatar,
+                'avatar' => $this->getAvatarUrl($user->avatar),
                 'challenges_solved' => $user->challenges_solved,
                 'total_points' => $user->total_points ?? 0,
             ];
@@ -221,7 +222,7 @@ class LeaderboardService
                 'username' => $user->username,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
-                'avatar' => $user->avatar,
+                'avatar' => $this->getAvatarUrl($user->avatar),
                 'achievements_earned' => $user->achievements_earned,
             ];
         });
@@ -254,7 +255,7 @@ class LeaderboardService
                 'username' => $user->username,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
-                'avatar' => $user->avatar,
+                'avatar' => $this->getAvatarUrl($user->avatar),
                 'current_streak' => $user->current_streak,
                 'longest_streak' => $user->longest_streak,
             ];
@@ -288,7 +289,7 @@ class LeaderboardService
                 'username' => $user->username,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
-                'avatar' => $user->avatar,
+                'avatar' => $this->getAvatarUrl($user->avatar),
                 'courses_completed' => $user->courses_completed,
             ];
         });
@@ -322,5 +323,18 @@ class LeaderboardService
             'courses' => $this->getCourseCompletionLeaderboard($limit),
             default => collect([]),
         };
+    }
+
+    private function getAvatarUrl($avatar): string
+    {
+        if (!$avatar) {
+            return '';
+        }
+
+        if (filter_var($avatar, FILTER_VALIDATE_URL)) {
+            return $avatar;
+        }
+
+        return url(Storage::url($avatar));
     }
 }
