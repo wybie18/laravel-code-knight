@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Services\ContentOrderingService;
 use App\Services\CourseEnrollmentService;
 use App\Services\CourseProgressService;
+use App\Services\CourseReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -19,15 +20,18 @@ class CourseController extends Controller
     private CourseProgressService $progressService;
     private ContentOrderingService $contentOrderingService;
     private CourseEnrollmentService $enrollmentService;
+    private CourseReportService $reportService;
 
     public function __construct(
         CourseProgressService $progressService,
         ContentOrderingService $contentOrderingService,
-        CourseEnrollmentService $enrollmentService
+        CourseEnrollmentService $enrollmentService,
+        CourseReportService $reportService
     ) {
         $this->progressService        = $progressService;
         $this->contentOrderingService = $contentOrderingService;
         $this->enrollmentService      = $enrollmentService;
+        $this->reportService          = $reportService;
     }
     /**
      * Display a listing of the resource.
@@ -622,5 +626,65 @@ class CourseController extends Controller
         }
 
         return $slug;
+    }
+
+    /**
+     * Generate overall course report
+     */
+    public function report(Course $course)
+    {
+        $user = Auth::user();
+
+        // Only course creator or admin can view overall report
+        if ($course->created_by !== $user->id && !$user->tokenCan('admin:*')) {
+            abort(403, 'Unauthorized. You do not have permission to view this report.');
+        }
+
+        try {
+            $report = $this->reportService->generateCourseReport($course);
+
+            return response()->json([
+                'success' => true,
+                'data' => $report,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate report.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate individual student report
+     */
+    public function studentReport(Course $course, \App\Models\User $student)
+    {
+        $user = Auth::user();
+
+        // Course creator, admin, or the student themselves can view the report
+        $canView = $course->created_by === $user->id || 
+                   $user->tokenCan('admin:*') || 
+                   $user->id === $student->id;
+
+        if (!$canView) {
+            abort(403, 'Unauthorized. You do not have permission to view this report.');
+        }
+
+        try {
+            $report = $this->reportService->generateStudentReport($student, $course);
+
+            return response()->json([
+                'success' => true,
+                'data' => $report,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate report.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 }
