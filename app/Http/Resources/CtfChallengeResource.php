@@ -19,7 +19,7 @@ class CtfChallengeResource extends JsonResource
             'category_id' => $this->category_id,
             'category'    => new CtfCategoryResource($this->whenLoaded('category')),
             'file_paths'  => collect($this->file_paths)->map(function ($path) {
-                return url(Storage::url($path));
+                return $path;
             }),
         ];
 
