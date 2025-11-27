@@ -30,8 +30,10 @@ class TypingSubmissionController extends Controller
         $challenge = Challenge::where('slug', $slug)
             ->where('challengeable_type', TypingChallenge::class)->firstOrFail();
 
-        $submissions = ChallengeSubmission::where('challenge_id', $challenge->id)->orderBy('created_at', 'desc')->get();
-
+        $submissions = ChallengeSubmission::where('challenge_id', $challenge->id)
+            ->where('user_id', $request->user()->id)
+            ->orderBy('created_at', 'desc')->get();
+        
         return response()->json([
             'success' => true,
             'data'    => $submissions,
