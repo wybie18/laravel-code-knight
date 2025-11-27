@@ -365,6 +365,7 @@ class Judge0TestRunner
                 $inputValues = $this->formatInputForPython($inputArray, $userCode);
 
                 return <<<PYTHON
+                from typing import *
                 {$definitions}
                 {$inputValues}
                 {$userCode}
@@ -374,6 +375,7 @@ class Judge0TestRunner
 
         if (! $this->hasInput($input)) {
             $testCode = <<<PYTHON
+            from typing import *
             {$definitions}
             {$userCode}
 
@@ -392,6 +394,7 @@ class Judge0TestRunner
             $inputValues = $this->formatInputForPython($inputArray, $userCode);
 
             $testCode = <<<PYTHON
+            from typing import *
             {$definitions}
             {$userCode}
 
