@@ -33,6 +33,7 @@ class CtfSubmissionController extends Controller
         $isCorrect    = $ctfChallenge->flag === $request->flag;
 
         $alreadySolved = ChallengeSubmission::where('challenge_id', $challenge->id)
+            ->where('user_id', $user->id)
             ->where('is_correct', true)
             ->exists();
 
