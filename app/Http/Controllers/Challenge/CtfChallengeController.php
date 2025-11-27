@@ -117,7 +117,7 @@ class CtfChallengeController extends Controller
             // CtfChallenge specific fields
             'flag'              => 'required|string|max:255',
             'category_id'       => 'required|exists:ctf_categories,id',
-            'challenge_files.*' => 'nullable|file|max:2048',
+            'challenge_files.*' => 'nullable|file|max:20480',
         ]);
 
         DB::beginTransaction();
@@ -126,7 +126,10 @@ class CtfChallengeController extends Controller
             $filePaths = [];
             if ($request->hasFile('challenge_files')) {
                 foreach ($request->file('challenge_files') as $file) {
-                    $path        = $file->store('ctf_challenges/files', 'public');
+                    $originalName = $file->getClientOriginalName();
+                    // Use a unique folder to prevent collisions while preserving the filename
+                    $uid = Str::uuid()->toString();
+                    $path = $file->storeAs("ctf_challenges/files/{$uid}", $originalName, 'public');
                     $filePaths[] = $path;
                 }
             }
@@ -221,7 +224,7 @@ class CtfChallengeController extends Controller
 
             'flag'                => 'required|string|max:255',
             'category_id'         => 'required|exists:ctf_categories,id',
-            'challenge_files.*'   => 'nullable|file|max:2048',
+            'challenge_files.*'   => 'nullable|file|max:20480',
             'existing_file_paths' => 'nullable|array', // Array of file paths to keep
         ]);
 
@@ -234,7 +237,9 @@ class CtfChallengeController extends Controller
 
             if ($request->hasFile('challenge_files')) {
                 foreach ($request->file('challenge_files') as $file) {
-                    $path           = $file->store('ctf_challenges/files', 'public');
+                    $originalName = $file->getClientOriginalName();
+                    $uid = Str::uuid()->toString();
+                    $path = $file->storeAs("ctf_challenges/files/{$uid}", $originalName, 'public');
                     $newFilePaths[] = $path;
                 }
             }
