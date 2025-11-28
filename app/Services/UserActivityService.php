@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\UserActivity;
+use App\Models\UserStreak;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 use Carbon\Carbon;
@@ -18,13 +19,82 @@ class UserActivityService
         string $activityType,
         $activityable = null,
     ): UserActivity {
-        return UserActivity::create([
+        $activity = UserActivity::create([
             'user_id' => $user->id,
             'activity_type' => $activityType,
             'activity_date' => now()->toDateString(),
             'activityable_type' => $activityable ? get_class($activityable) : null,
             'activityable_id' => $activityable?->id
         ]);
+
+        $this->updateUserStreak($user);
+
+        return $activity;
+    }
+
+
+    protected function updateUserStreak(User $user): void
+    {
+        $streak = UserStreak::firstOrCreate(
+            ['user_id' => $user->id],
+            [
+                'current_streak' => 0, 
+                'longest_streak' => 0, 
+                'last_activity_date' => null
+            ]
+        );
+
+        $today = now()->startOfDay();
+        $lastActivityDate = $streak->last_activity_date 
+            ? Carbon::parse($streak->last_activity_date)->startOfDay() 
+            : null;
+
+        if ($lastActivityDate && $lastActivityDate->equalTo($today)) {
+            return;
+        }
+
+        $yesterday = now()->subDay()->startOfDay();
+        
+        if ($lastActivityDate && $lastActivityDate->equalTo($yesterday)) {
+            $streak->current_streak++;
+        } else {
+            $streak->current_streak = 1;
+        }
+
+        if ($streak->current_streak > $streak->longest_streak) {
+            $streak->longest_streak = $streak->current_streak;
+        }
+
+        $streak->last_activity_date = now();
+        $streak->save();
+    }
+
+    /**
+     * Get current activity streak from UserStreak table
+     */
+    public function getCurrentStreak(User $user): int
+    {
+        $streak = UserStreak::where('user_id', $user->id)->first();
+
+        if (!$streak || !$streak->last_activity_date) {
+            return 0;
+        }
+
+        $lastActive = Carbon::parse($streak->last_activity_date);
+        
+        if ($lastActive->isToday() || $lastActive->isYesterday()) {
+            return $streak->current_streak;
+        }
+
+        return 0;
+    }
+
+    /**
+     * Get longest streak ever from UserStreak table
+     */
+    public function getLongestStreak(User $user): int
+    {
+        return UserStreak::where('user_id', $user->id)->value('longest_streak') ?? 0;
     }
 
     /**
@@ -78,81 +148,6 @@ class UserActivityService
         if ($count <= 6) return 2;
         if ($count <= 9) return 3;
         return 4;
-    }
-
-    /**
-     * Get current activity streak
-     */
-    public function getCurrentStreak(User $user): int
-    {
-        $activities = UserActivity::where('user_id', $user->id)
-            ->select('activity_date')
-            ->distinct()
-            ->orderBy('activity_date', 'desc')
-            ->pluck('activity_date');
-
-        if ($activities->isEmpty()) {
-            return 0;
-        }
-
-        $streak = 0;
-        $today = now()->toDateString();
-        $yesterday = now()->subDay()->toDateString();
-        $expectedDate = now();
-
-        // Start checking from today or yesterday
-        $startDate = $activities->first();
-        if ($startDate !== $today && $startDate !== $yesterday) {
-            return 0;
-        }
-
-        foreach ($activities as $activityDate) {
-            $date = Carbon::parse($activityDate);
-            
-            if ($date->toDateString() === $expectedDate->toDateString()) {
-                $streak++;
-                $expectedDate->subDay();
-            } else {
-                break;
-            }
-        }
-
-        return $streak;
-    }
-
-    /**
-     * Get longest streak ever
-     */
-    public function getLongestStreak(User $user): int
-    {
-        $activities = UserActivity::where('user_id', $user->id)
-            ->select('activity_date')
-            ->distinct()
-            ->orderBy('activity_date', 'asc')
-            ->pluck('activity_date');
-
-        if ($activities->isEmpty()) {
-            return 0;
-        }
-
-        $longestStreak = 1;
-        $currentStreak = 1;
-        $previousDate = Carbon::parse($activities->first());
-
-        foreach ($activities->slice(1) as $activityDate) {
-            $date = Carbon::parse($activityDate);
-            
-            if ($date->diffInDays($previousDate) === 1) {
-                $currentStreak++;
-                $longestStreak = max($longestStreak, $currentStreak);
-            } else {
-                $currentStreak = 1;
-            }
-            
-            $previousDate = $date;
-        }
-
-        return $longestStreak;
     }
 
     /**
