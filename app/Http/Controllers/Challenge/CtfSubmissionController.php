@@ -36,6 +36,8 @@ class CtfSubmissionController extends Controller
             ->where('user_id', $user->id)
             ->where('is_correct', true)
             ->exists();
+        
+        $this->userActivityService->logActivity($user, "ctf_challenge_submission", $challenge);
 
         if ($alreadySolved) {
             return response()->json(['success' => false, 'message' => 'Challenge already solved.'], 400);
@@ -54,8 +56,6 @@ class CtfSubmissionController extends Controller
             app(AchievementService::class)->checkAndAwardAchievements($user);
             return response()->json(['success' => true, 'message' => 'Correct flag! Challenge solved.'], 200);
         }
-
-        $this->userActivityService->logActivity($user, "ctf_challenge_submission", $challenge);
 
         return response()->json(['success' => false, 'message' => 'Incorrect flag. Try again!'], 200);
     }
