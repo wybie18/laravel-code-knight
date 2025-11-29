@@ -65,8 +65,8 @@ class LeaderboardService
         ->where('challenge_submissions.is_correct', true)
         ->where('challenges.challengeable_type', CodingChallenge::class)
         ->groupBy('users.id', 'users.username', 'users.first_name', 'users.last_name', 'users.avatar')
-        ->orderBy('challenges_solved', 'desc')
         ->orderBy('total_points', 'desc')
+        ->orderBy('challenges_solved', 'desc')
         ->limit($limit)
         ->get()
         ->map(function ($user, $index) {
@@ -103,8 +103,8 @@ class LeaderboardService
         ->where('challenge_submissions.is_correct', true)
         ->where('challenges.challengeable_type', CtfChallenge::class)
         ->groupBy('users.id', 'users.username', 'users.first_name', 'users.last_name', 'users.avatar')
-        ->orderBy('challenges_solved', 'desc')
         ->orderBy('total_points', 'desc')
+        ->orderBy('challenges_solved', 'desc')
         ->limit($limit)
         ->get()
         ->map(function ($user, $index) {
@@ -141,8 +141,8 @@ class LeaderboardService
         ->where('challenge_submissions.is_correct', true)
         ->where('challenges.challengeable_type', TypingChallenge::class)
         ->groupBy('users.id', 'users.username', 'users.first_name', 'users.last_name', 'users.avatar')
-        ->orderBy('challenges_solved', 'desc')
         ->orderBy('total_points', 'desc')
+        ->orderBy('challenges_solved', 'desc')
         ->limit($limit)
         ->get()
         ->map(function ($user, $index) {
@@ -178,8 +178,8 @@ class LeaderboardService
         ->where('users.role_id', 2) // students
         ->where('challenge_submissions.is_correct', true)
         ->groupBy('users.id', 'users.username', 'users.first_name', 'users.last_name', 'users.avatar')
-        ->orderBy('challenges_solved', 'desc')
         ->orderBy('total_points', 'desc')
+        ->orderBy('challenges_solved', 'desc')
         ->limit($limit)
         ->get()
         ->map(function ($user, $index) {
