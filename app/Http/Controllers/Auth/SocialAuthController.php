@@ -20,14 +20,16 @@ class SocialAuthController extends Controller
         $this->validateProvider($provider);
 
         $request->validate([
-            'role'        => 'nullable|string|in:teacher,student',
-            'device_name' => 'required|string|max:255',
+            'role'         => 'nullable|string|in:teacher,student',
+            'device_name'  => 'required|string|max:255',
+            'redirect_url' => 'nullable|string',
         ]);
 
         $stateToken = Str::random(40);
         Cache::put("oauth_state_{$stateToken}", [
-            'role'        => $request->role,
-            'device_name' => $request->device_name,
+            'role'         => $request->role,
+            'device_name'  => $request->device_name,
+            'redirect_url' => $request->redirect_url,
         ], now()->addMinutes(10));
 
         $redirectUrl = Socialite::driver($provider)
@@ -51,6 +53,8 @@ class SocialAuthController extends Controller
      */
     public function handleProviderCallback($provider, Request $request)
     {
+        $clientRedirectUrl = null;
+
         try {
             $this->validateProvider($provider);
 
@@ -72,6 +76,8 @@ class SocialAuthController extends Controller
 
             $role       = $oauthData['role'];
             $deviceName = $oauthData['device_name'];
+            $clientRedirectUrl = $oauthData['redirect_url'] ?? null;
+
             Log::info("OAuth login attempt for role: {$role}, device: {$deviceName}");
 
             $socialUser = Socialite::driver($provider)->stateless()->user();
@@ -139,8 +145,18 @@ class SocialAuthController extends Controller
                 'stats'      => json_encode($stats),
             ];
 
-            return redirect()->away(config('app.frontend_url') . "/auth/callback?" . http_build_query($queryParams));
+            $baseUrl = $clientRedirectUrl ?? (config('app.frontend_url') . "/auth/callback");
+            $separator = parse_url($baseUrl, PHP_URL_QUERY) ? '&' : '?';
+            return redirect()->away($baseUrl . $separator . http_build_query($queryParams));
         } catch (\Exception $e) {
+            if ($clientRedirectUrl) {
+                $separator = parse_url($clientRedirectUrl, PHP_URL_QUERY) ? '&' : '?';
+                return redirect()->away($clientRedirectUrl . $separator . http_build_query([
+                    'error'   => 'true',
+                    'message' => $e->getMessage(),
+                ]));
+            }
+
             return redirect()->away(config('app.frontend_url') . "/auth/error?" . http_build_query([
                 'message' => $e->getMessage(),
             ]));
