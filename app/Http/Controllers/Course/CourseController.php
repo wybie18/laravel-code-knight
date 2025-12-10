@@ -95,7 +95,7 @@ class CourseController extends Controller
             $query->where('is_published', $request->boolean('is_published'));
         }
 
-        $query->with(['difficulty', 'category', 'skillTags', 'programmingLanguage'])
+        $query->with(['difficulty', 'category', 'skillTags', 'programmingLanguage', 'creator'])
             ->withCount(['modules', 'enrollments']);
 
         if (Auth::check()) {
@@ -158,7 +158,7 @@ class CourseController extends Controller
      */
     public function show(Course $course)
     {
-        $course->load(['difficulty', 'category', 'skillTags', 'programmingLanguage']);
+        $course->load(['difficulty', 'category', 'skillTags', 'programmingLanguage', 'creator']);
 
         $additionalData = ['success' => true];
 
