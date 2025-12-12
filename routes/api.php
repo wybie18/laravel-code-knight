@@ -10,6 +10,18 @@ Route::get('/user', function (Request $request) {
 
 Route::post('/upload', [FileUploadController::class, 'upload']);
 
+Route::get('/download/apk', function () {
+    $filePath = storage_path('app/apk/app-release.apk');
+
+    if (!file_exists($filePath)) {
+        abort(404, 'File not found.');
+    }
+
+    return response()->download($filePath, 'codeknight.apk', [
+        'Content-Type' => 'application/vnd.android.package-archive',
+    ]);
+});
+
 require __DIR__ . '/api/auth.php';
 require __DIR__ . '/api/challenges.php';
 require __DIR__ . '/api/courses.php';
