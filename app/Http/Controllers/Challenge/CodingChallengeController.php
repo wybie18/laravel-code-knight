@@ -105,7 +105,7 @@ class CodingChallengeController extends Controller
      */
     public function store(Request $request)
     {
-        if (! $request->user()->tokenCan('admin:*')) {
+        if (! $request->user()->tokenCan('admin:*') && ! $request->user()->tokenCan('challenges:create')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
@@ -136,16 +136,17 @@ class CodingChallengeController extends Controller
                 'test_cases'        => $validated['test_cases'],
             ]);
 
-            $challenge = new Challenge([
-                'title'         => $validated['title'],
-                'slug'          => Str::slug($validated['title']),
-                'description'   => $validated['description'],
-                'difficulty_id' => $validated['difficulty_id'],
-                'points'        => $validated['points'],
-                'hints'         => $validated['hints'] ?? null,
+            $challenge = Challenge::create([
+                'title'              => $validated['title'],
+                'slug'               => Str::slug($validated['title']),
+                'description'        => $validated['description'],
+                'difficulty_id'      => $validated['difficulty_id'],
+                'points'             => $validated['points'],
+                'hints'              => $validated['hints'] ?? null,
+                'created_by'         => $request->user()->id,
+                'challengeable_id'   => $codingChallenge->id,
+                'challengeable_type' => CodingChallenge::class,
             ]);
-
-            $codingChallenge->challenge()->save($challenge);
 
             $languagesToAttach = [];
             foreach ($validated['programming_languages'] as $langData) {
@@ -202,7 +203,7 @@ class CodingChallengeController extends Controller
      */
     public function update(Request $request, string $slug)
     {
-        if (! $request->user()->tokenCan('admin:*')) {
+        if (! $request->user()->tokenCan('admin:*') && ! $request->user()->tokenCan('challenges:update')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
@@ -279,7 +280,7 @@ class CodingChallengeController extends Controller
      */
     public function destroy(string $slug)
     {
-        if (! request()->user()->tokenCan('admin:*')) {
+        if (! request()->user()->tokenCan('admin:*') && ! request()->user()->tokenCan('challenges:delete')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
