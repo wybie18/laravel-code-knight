@@ -486,71 +486,84 @@ class Judge0TestRunner
 
         // Check if user is using Main class with main method (Standard Java entry point)
         // If so, we return the code as is, assuming they handle execution themselves.
-        // Note: This currently doesn't support injecting inputs via stdin for Main class,
-        // so it works best for no-input problems or if we update submitCode to handle stdin.
         if (strpos($userCode, 'class Main') !== false && strpos($userCode, 'public static void main') !== false) {
             return $userCode . "\n\n" . $definitions;
         }
+
+        // Extract imports to place them at the top of the file
+        preg_match_all('/^\s*import\s+[^;]+;/m', $userCode, $importMatches);
+        $imports       = ! empty($importMatches[0]) ? implode("\n", $importMatches[0]) . "\n" : '';
+        $userCodeClean = preg_replace('/^\s*import\s+[^;]+;/m', '', $userCode);
 
         $hasSolutionClass = $this->hasSolutionClass($userCode, 'java');
 
         if ($isActivity && ! $hasSolutionClass) {
             if (! $this->hasInput($input)) {
-                return $userCode . "\n\n" . $definitions;
+                return $imports . $userCodeClean . "\n\n" . $definitions;
             } else {
                 $inputArray  = is_string($input) ? json_decode($input, true) : $input;
                 $inputValues = $this->formatInputForJava($inputArray, $userCode);
                 Log::info("Input Values for Java Activity: " . $inputValues);
-                if (preg_match('/(\s*public\s+static\s+void\s+main\s*\([^)]*\)\s*\{)/', $userCode, $matches, PREG_OFFSET_CAPTURE)) {
+                if (preg_match('/(\s*public\s+static\s+void\s+main\s*\([^)]*\)\s*\{)/', $userCodeClean, $matches, PREG_OFFSET_CAPTURE)) {
                     $mainMethodStart = $matches[1][1] + strlen($matches[1][0]);
-                    $code            = substr($userCode, 0, $mainMethodStart) . "\n" . $inputValues . "\n" . substr($userCode, $mainMethodStart);
-                    return $code . "\n\n" . $definitions;
+                    $code            = substr($userCodeClean, 0, $mainMethodStart) . "\n" . $inputValues . "\n" . substr($userCodeClean, $mainMethodStart);
+                    return $imports . $code . "\n\n" . $definitions;
                 }
 
-                return $inputValues . "\n" . $userCode . "\n\n" . $definitions;
+                return $imports . $inputValues . "\n" . $userCodeClean . "\n\n" . $definitions;
             }
         }
 
+        // Wrap Solution class inside a Main class for Judge0 compatibility
         if (! $this->hasInput($input)) {
-            $mainMethod = <<<JAVA
+            $wrappedCode = <<<JAVA
+{$imports}
+public class Main {
+    public static void main(String[] args) {
+        try {
+            Solution solution = new Solution();
+            Object result = solution.main();
+            String out = java.util.Arrays.deepToString(new Object[]{result});
+            System.out.println(out.substring(1, out.length() - 1));
+        } catch (Exception e) {
+            System.err.println("Runtime Error: " + e.getMessage());
+            System.exit(1);
+        }
+    }
+}
 
-                public static void main(String[] args) {
-                    try {
-                        Solution solution = new Solution();
-                        Object result = solution.main();
-                        System.out.println(java.util.Arrays.deepToString(new Object[]{result}));
-                    } catch (Exception e) {
-                        System.err.println("Runtime Error: " + e.getMessage());
-                        System.exit(1);
-                    }
-                }
-            JAVA;
+{$userCodeClean}
+
+{$definitions}
+JAVA;
         } else {
             $inputArray  = is_string($input) ? json_decode($input, true) : $input;
             $inputValues = $this->formatInputForJava($inputArray, $userCode);
 
-            $mainMethod = <<<JAVA
+            $wrappedCode = <<<JAVA
+{$imports}
+public class Main {
+    public static void main(String[] args) {
+        try {
+{$inputValues}
+            Solution solution = new Solution();
+            Object result = solution.main({$this->getJavaArguments($inputArray)});
+            String out = java.util.Arrays.deepToString(new Object[]{result});
+            System.out.println(out.substring(1, out.length() - 1));
+        } catch (Exception e) {
+            System.err.println("Runtime Error: " + e.getMessage());
+            System.exit(1);
+        }
+    }
+}
 
-                public static void main(String[] args) {
-                    try {
-                        {$inputValues}
-                        Solution solution = new Solution();
-                        Object result = solution.main({$this->getJavaArguments($inputArray)});
-                        System.out.println(java.util.Arrays.deepToString(new Object[]{result}));
-                    } catch (Exception e) {
-                        System.err.println("Runtime Error: " + e.getMessage());
-                        System.exit(1);
-                    }
-                }
-            JAVA;
+{$userCodeClean}
+
+{$definitions}
+JAVA;
         }
 
-        $lastBrace = strrpos($userCode, '}');
-        if ($lastBrace !== false) {
-            return substr($userCode, 0, $lastBrace) . $mainMethod . "\n}" . "\n\n" . $definitions;
-        }
-
-        throw new \Exception("Invalid Java class structure");
+        return $wrappedCode;
     }
 
     /**
@@ -842,8 +855,11 @@ class Judge0TestRunner
             $actualOutput = trim($this->safeDecode($judgeResult['stdout']));
         }
 
-        if ($actualOutput === "True" || $actualOutput === "False") {
-            $actualOutput = strtolower($actualOutput) === "true";
+        // Handle boolean string representations
+        if (strtolower($actualOutput) === "true") {
+            $actualOutput = true;
+        } elseif (strtolower($actualOutput) === "false") {
+            $actualOutput = false;
         }
 
         $expectedOutput = $testCase['expected_output'];
