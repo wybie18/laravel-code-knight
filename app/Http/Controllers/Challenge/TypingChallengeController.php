@@ -100,7 +100,7 @@ class TypingChallengeController extends Controller
      */
     public function store(Request $request)
     {
-        if (! $request->user()->tokenCan('admin:*')) {
+        if (! $request->user()->tokenCan('admin:*') && ! $request->user()->tokenCan('challenges:create')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
@@ -129,16 +129,17 @@ class TypingChallengeController extends Controller
                 'target_accuracy'         => $validated['target_accuracy'],
             ]);
 
-            $challenge = new Challenge([
-                'title'         => $validated['title'],
-                'slug'          => Str::slug($validated['title']),
-                'description'   => $validated['description'],
-                'difficulty_id' => $validated['difficulty_id'],
-                'points'        => $validated['points'],
-                'hints'         => $validated['hints'] ?? null,
+            $challenge = Challenge::create([
+                'title'              => $validated['title'],
+                'slug'               => Str::slug($validated['title']),
+                'description'        => $validated['description'],
+                'difficulty_id'      => $validated['difficulty_id'],
+                'points'             => $validated['points'],
+                'hints'              => $validated['hints'] ?? null,
+                'created_by'         => $request->user()->id,
+                'challengeable_id'   => $typingChallenge->id,
+                'challengeable_type' => TypingChallenge::class,
             ]);
-
-            $typingChallenge->challenge()->save($challenge);
 
             DB::commit();
 
@@ -185,7 +186,7 @@ class TypingChallengeController extends Controller
      */
     public function update(Request $request, string $slug)
     {
-        if (! $request->user()->tokenCan('admin:*')) {
+        if (! $request->user()->tokenCan('admin:*') && ! $request->user()->tokenCan('challenges:update')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
@@ -253,7 +254,7 @@ class TypingChallengeController extends Controller
      */
     public function destroy(string $slug)
     {
-        if (! request()->user()->tokenCan('admin:*')) {
+        if (! request()->user()->tokenCan('admin:*') && ! request()->user()->tokenCan('challenges:delete')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
