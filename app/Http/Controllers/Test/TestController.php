@@ -79,7 +79,7 @@ class TestController extends Controller
      */
     public function store(Request $request)
     {
-        if (! Auth::user()->tokenCan('tests:create')) {
+        if (! Auth::user()->tokenCan('tests:create') && ! Auth::user()->tokenCan('admin:*')) {
             abort(403, 'Unauthorized. You do not have permission to create tests.');
         }
 
