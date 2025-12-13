@@ -26,7 +26,7 @@ class TestCodeExecutionService
         }
 
         $codingChallenge = $testItem->itemable;
-        $language = ProgrammingLanguage::findOrFail($languageId);
+        $language = $this->findLanguage($languageId);
 
         $this->validateTestCases($codingChallenge);
 
@@ -52,7 +52,7 @@ class TestCodeExecutionService
         }
 
         $codingChallenge = $testItem->itemable;
-        $language = ProgrammingLanguage::findOrFail($languageId);
+        $language = $this->findLanguage($languageId);
 
         $this->validateTestCases($codingChallenge);
 
@@ -97,9 +97,25 @@ class TestCodeExecutionService
 
     public function runAllTests(CodingChallenge $codingChallenge, int $languageId, string $userCode): array
     {
-        $language = ProgrammingLanguage::findOrFail($languageId);
+        $language = $this->findLanguage($languageId);
+
         $this->validateTestCases($codingChallenge);
         return $this->testRunner->runTestCases($codingChallenge, $language, $userCode);
+    }
+
+    private function findLanguage(int $languageId): ProgrammingLanguage
+    {
+        $language = ProgrammingLanguage::where('language_id', $languageId)->first();
+
+        if (!$language) {
+            $language = ProgrammingLanguage::find($languageId);
+        }
+
+        if (!$language) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException("Programming Language with ID $languageId not found.");
+        }
+
+        return $language;
     }
 
     private function validateTestCases(CodingChallenge $codingChallenge): void
