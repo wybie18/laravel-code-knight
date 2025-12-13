@@ -13,6 +13,7 @@ use App\Models\TestItem;
 use App\Models\TestItemSubmission;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class TestService
@@ -124,24 +125,58 @@ class TestService
                 'is_correct' => $isCorrect,
             ];
         }
-
+        Log::info('Auto-grading test item', [
+            'test_item_id' => $testItem->id,
+            'itemable_type' => get_class($itemable),
+        ]);
         if ($itemable instanceof CodingChallenge) {
+            Log::info('Coding challenge answer received', [
+                'test_item_id' => $testItem->id,
+                'raw_answer' => $answer,
+            ]);
+            
             $answerData = is_string($answer) ? json_decode($answer, true) : $answer;
 
-            if (is_array($answerData) && !empty($answerData['code']) && !empty($answerData['language_id'])) {
-                try {
-                    $results = $this->testCodeExecutionService->runAllTests(
-                        $itemable,
-                        $answerData['language_id'],
-                        $answerData['code']
-                    );
+            // If json_decode failed (it returns null for invalid JSON), treat raw string as code
+            if ($answerData === null && is_string($answer)) {
+                $answerData = ['code' => $answer];
+            }
 
-                    return [
-                        'score' => $results['passed'] ? $testItem->points : 0,
-                        'is_correct' => $results['passed'],
-                    ];
-                } catch (\Exception $e) {
-                    return null;
+            Log::info('Coding challenge answer data', [
+                'test_item_id' => $testItem->id,
+                'answer_data' => $answerData,
+            ]);
+
+            if (is_array($answerData) && !empty($answerData['code'])) {
+                // If language_id is missing, try to find a default one from the challenge
+                if (empty($answerData['language_id'])) {
+                    $defaultLang = $itemable->programmingLanguages()->first();
+                    if ($defaultLang) {
+                        $answerData['language_id'] = $defaultLang->language_id;
+                        Log::info('Using default language for grading', ['language_id' => $defaultLang->language_id]);
+                    }
+                }
+
+                if (!empty($answerData['language_id'])) {
+                    try {
+                        $results = $this->testCodeExecutionService->runAllTests(
+                            $itemable,
+                            $answerData['language_id'],
+                            $answerData['code']
+                        );
+
+                        Log::info('Auto-graded coding challenge', [
+                            'test_item_id' => $testItem->id,
+                            'results' => $results,
+                        ]);
+                        return [
+                            'score' => $results['passed'] ? $testItem->points : 0,
+                            'is_correct' => $results['passed'],
+                        ];
+                    } catch (\Exception $e) {
+                        Log::error('Auto-grading exception', ['error' => $e->getMessage()]);
+                        return null;
+                    }
                 }
             }
             return null;
