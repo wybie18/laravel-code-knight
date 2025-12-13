@@ -16,7 +16,7 @@ Route::get('difficulties/all', [DifficultyController::class, 'getDifficulties'])
 Route::get('ctf-categories/all', [CtfCategoryController::class, 'getAllCtfCategories']);
 Route::get('programming-languages/all', [ProgrammingLanguageController::class, 'getProgrammingLanguages']);
 
-Route::middleware(['auth:sanctum', 'ability:admin:*'])->group(function () {
+Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('challenges/ctf', CtfChallengeController::class)->except(['index', 'show']);
     Route::apiResource('challenges/coding', CodingChallengeController::class)->except(['index', 'show']);
     Route::apiResource('challenges/typing', TypingChallengeController::class)->except(['index', 'show']);
