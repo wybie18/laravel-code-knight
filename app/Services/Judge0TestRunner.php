@@ -864,13 +864,22 @@ JAVA;
 
         $expectedOutput = $testCase['expected_output'];
 
+        // Parse the input for display - convert JSON string to readable format
+        $displayInput = $testCase['input'];
+        if (is_string($displayInput)) {
+            $parsedInput = json_decode($displayInput, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($parsedInput)) {
+                $displayInput = $parsedInput;
+            }
+        }
+
         // Parse and compare outputs
         $passed = $this->compareOutputs($actualOutput, $expectedOutput);
 
         return [
             'test_case'       => $index,
             'passed'          => $passed,
-            'input'           => $testCase['input'],
+            'input'           => $displayInput,
             'actual_output'   => $actualOutput,
             'expected_output' => $expectedOutput,
             'execution_time'  => $judgeResult['time'] ?? null,
@@ -949,12 +958,21 @@ JAVA;
             return strpos($cleaned, '.') !== false ? (float) $cleaned : (int) $cleaned;
         }
 
-        // Looks like JSON?
+        // Looks like JSON or Python list/dict?
         if (
             ($cleaned[0] === '{' && substr($cleaned, -1) === '}') ||
             ($cleaned[0] === '[' && substr($cleaned, -1) === ']')
         ) {
+            // First try standard JSON decode
             $decoded = json_decode($cleaned, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return $decoded;
+            }
+
+            // Try converting Python-style output to JSON
+            // Replace single quotes with double quotes (careful with escaped quotes)
+            $jsonified = $this->pythonToJson($cleaned);
+            $decoded = json_decode($jsonified, true);
             if (json_last_error() === JSON_ERROR_NONE) {
                 return $decoded;
             }
@@ -966,6 +984,36 @@ JAVA;
         }
 
         return $cleaned;
+    }
+
+    /**
+     * Convert Python-style output to JSON format
+     */
+    private function pythonToJson(string $pythonStr): string
+    {
+        // Replace Python None with null
+        $result = preg_replace('/\bNone\b/', 'null', $pythonStr);
+        
+        // Replace Python True/False with true/false
+        $result = preg_replace('/\bTrue\b/', 'true', $result);
+        $result = preg_replace('/\bFalse\b/', 'false', $result);
+        
+        // Replace single quotes with double quotes
+        // This is a simplified approach - handles most common cases
+        // Replace single-quoted strings with double-quoted strings
+        $result = preg_replace_callback(
+            "/(?<![\\\\])'((?:[^'\\\\]|\\\\.)*)'/",
+            function ($matches) {
+                // Escape any unescaped double quotes inside the string
+                $inner = str_replace('"', '\\"', $matches[1]);
+                // Unescape single quotes
+                $inner = str_replace("\\'", "'", $inner);
+                return '"' . $inner . '"';
+            },
+            $result
+        );
+        
+        return $result;
     }
 
     /**
