@@ -15,6 +15,7 @@ class Challenge extends Model
         'hints',
         'challengeable_id',
         'challengeable_type',
+        'created_by',
     ];
 
     /**
@@ -41,5 +42,10 @@ class Challenge extends Model
     public function challengeable()
     {
         return $this->morphTo();
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 }
