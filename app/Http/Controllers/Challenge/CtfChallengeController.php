@@ -103,7 +103,7 @@ class CtfChallengeController extends Controller
      */
     public function store(Request $request)
     {
-        if (! $request->user()->tokenCan('admin:*')) {
+        if (! $request->user()->tokenCan('admin:*') && ! $request->user()->tokenCan('challenges:create')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
         $validated = $request->validate([
@@ -140,16 +140,17 @@ class CtfChallengeController extends Controller
                 'file_paths'  => $filePaths,
             ]);
 
-            $challenge = new Challenge([
-                'title'         => $validated['title'],
-                'slug'          => Str::slug($validated['title']),
-                'description'   => $validated['description'],
-                'difficulty_id' => $validated['difficulty_id'],
-                'points'        => $validated['points'],
-                'hints'         => $validated['hints'] ?? null,
+            $challenge = Challenge::create([
+                'title'             => $validated['title'],
+                'slug'              => Str::slug($validated['title']),
+                'description'       => $validated['description'],
+                'difficulty_id'     => $validated['difficulty_id'],
+                'points'            => $validated['points'],
+                'hints'             => $validated['hints'] ?? null,
+                'created_by'        => $request->user()->id,
+                'challengeable_id'   => $ctfChallenge->id,
+                'challengeable_type' => CtfChallenge::class,
             ]);
-
-            $ctfChallenge->challenge()->save($challenge);
 
             DB::commit();
 
@@ -206,7 +207,7 @@ class CtfChallengeController extends Controller
      */
     public function update(Request $request, string $slug)
     {
-        if (! $request->user()->tokenCan('admin:*')) {
+        if (! $request->user()->tokenCan('admin:*') && ! $request->user()->tokenCan('challenges:update')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
@@ -294,7 +295,7 @@ class CtfChallengeController extends Controller
      */
     public function destroy(string $slug)
     {
-        if (! request()->user()->tokenCan('admin:*')) {
+        if (! request()->user()->tokenCan('admin:*') && ! request()->user()->tokenCan('challenges:delete')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
 
