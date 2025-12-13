@@ -89,7 +89,7 @@ class TestController extends Controller
             'description'              => 'nullable|string',
             'instructions'             => 'nullable|string',
             'duration_minutes'         => 'nullable|integer|min:1',
-            'start_time'               => 'nullable|date|after:now',
+            'start_time'               => 'nullable|date',
             'end_time'                 => 'nullable|date|after:start_time',
             'status'                   => 'sometimes|in:draft,scheduled,active,closed,archived',
             'shuffle_questions'        => 'sometimes|boolean',
@@ -473,8 +473,8 @@ class TestController extends Controller
                 $validated = $request->validate([
                     'problem_statement'                    => 'required|string',
                     'test_cases'                           => 'required|array',
-                    'test_cases.*.input'                   => 'nullable|string',
-                    'test_cases.*.expected_output'         => 'required|string',
+                    'test_cases.*.input'                   => 'nullable',
+                    'test_cases.*.expected_output'         => 'required',
 
                     // Programming languages and pivot data
                     'programming_languages'                => 'required|array|min:1',
