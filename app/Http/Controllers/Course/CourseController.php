@@ -241,13 +241,9 @@ class CourseController extends Controller
      */
     public function destroy(Course $course, Request $request)
     {
-        if (! request()->user()->tokenCan('admin:*')) {
+        if (! request()->user()->tokenCan('admin:*') && ! request()->user()->tokenCan('courses:delete')) {
             abort(403, 'Unauthorized. You do not have permission.');
         }
-
-        $request->validate([
-            'password' => ['required', 'current_password'],
-        ]);
 
         DB::beginTransaction();
 
