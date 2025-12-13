@@ -3,10 +3,9 @@
 namespace App\Services;
 
 use App\Models\Course;
+use App\Models\Test;
+use App\Models\TestAttempt;
 use App\Models\User;
-use App\Models\UserActivityProgress;
-use App\Models\UserCourseProgress;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 
 class CourseReportService
@@ -27,14 +26,8 @@ class CourseReportService
      */
     public function generateStudentReport(User $student, Course $course): array
     {
-        // 1. Basic Progress Statistics
         $stats = $this->progressService->getCourseStatistics($student, $course);
-
-        // 2. Detailed Activity Performance
         $activityPerformance = $this->getActivityPerformance($student, $course);
-
-        // 3. Time Analysis
-        $timeAnalysis = $this->getTimeAnalysis($student, $course);
 
         return [
             'student' => [
@@ -50,11 +43,11 @@ class CourseReportService
             ],
             'progress_summary' => $stats,
             'performance_metrics' => [
-                'activities_completed' => $stats['completed_content'] - $stats['total_lessons'], // Approximation if lessons are tracked separately
-                'total_activities' => $stats['total_activities'],
-                'completion_rate' => $stats['progress_percentage'] . '%',
+                'activities_completed' => $stats['completed_content'] ?? 0,
+                'total_activities' => $stats['total_activities'] ?? 0,
+                'completion_rate' => ($stats['progress_percentage'] ?? 0) . '%',
+                'test_performance' => $activityPerformance['tests'],
             ],
-            'time_analysis' => $timeAnalysis,
             'generated_at' => now()->toIso8601String(),
         ];
     }
@@ -71,33 +64,47 @@ class CourseReportService
         $completedStudents = 0;
         $totalProgress = 0;
         
+        // Test aggregation variables
+        $totalTestsTaken = 0;
+        $sumAverageTestScores = 0;
+        $studentsWithTests = 0;
+
         $studentReports = [];
 
         foreach ($students as $studentData) {
-            // getEnrolledStudents returns an array of data, we need the User model
-            // But wait, getEnrolledStudents returns a collection of arrays.
-            // I should probably fetch the User models directly or adjust how I use the data.
-            // Let's fetch the user model for accurate service usage.
-            $student = User::find($studentData['student']['id']);
-            
+            $studentId = $studentData['student']['id'] ?? null;
+            if (!$studentId) continue;
+
+            $student = User::find($studentId);
             if (!$student) continue;
 
             $report = $this->generateStudentReport($student, $course);
             $studentReports[] = $report;
 
-            $progress = $report['progress_summary']['progress_percentage'];
+            $progress = $report['progress_summary']['progress_percentage'] ?? 0;
             $totalProgress += $progress;
 
             if ($progress > 0) {
                 $activeStudents++;
             }
 
-            if ($report['progress_summary']['is_completed']) {
+            if (!empty($report['progress_summary']['is_completed'])) {
                 $completedStudents++;
+            }
+
+            // Aggregate test data
+            $testPerf = $report['performance_metrics']['test_performance'];
+            if ($testPerf['taken'] > 0) {
+                $totalTestsTaken += $testPerf['taken'];
+                // Parse percentage string to float
+                $avgScore = floatval(str_replace('%', '', $testPerf['average_score_percentage']));
+                $sumAverageTestScores += $avgScore;
+                $studentsWithTests++;
             }
         }
 
         $averageProgress = $totalStudents > 0 ? round($totalProgress / $totalStudents, 2) : 0;
+        $averageTestScore = $studentsWithTests > 0 ? round($sumAverageTestScores / $studentsWithTests, 2) : 0;
 
         return [
             'course' => [
@@ -111,6 +118,7 @@ class CourseReportService
                 'completion_rate' => $totalStudents > 0 ? round(($completedStudents / $totalStudents) * 100, 2) . '%' : '0%',
                 'active_students_count' => $activeStudents,
                 'completed_students_count' => $completedStudents,
+                'average_test_score' => $averageTestScore . '%',
             ],
             'student_performance' => $studentReports,
             'generated_at' => now()->toIso8601String(),
@@ -119,40 +127,71 @@ class CourseReportService
 
     private function getActivityPerformance(User $user, Course $course): array
     {
-        // This could be expanded to include quiz scores, coding challenge results, etc.
-        // For now, we'll rely on completion status from the progress service.
-        // If we had a Score model, we would query it here.
-        return [];
-    }
+        // 1. Test Performance
+        $tests = Test::where('course_id', $course->id)->get();
+        $totalTests = $tests->count();
+        $testsTaken = 0;
+        $totalScoreObtained = 0;
+        $totalMaxScorePossible = 0;
+        $testDetails = [];
 
-    private function getTimeAnalysis(User $user, Course $course): array
-    {
-        // Calculate time spent based on UserActivityProgress
-        // This assumes we track time spent. If not, we can calculate duration between started_at and completed_at
-        
-        $activities = UserActivityProgress::where('user_id', $user->id)
-            ->whereHas('activity', function($q) use ($course) {
-                $q->whereHas('module', function($q) use ($course) {
-                    $q->where('course_id', $course->id);
-                });
-            })
-            ->whereNotNull('started_at')
-            ->whereNotNull('completed_at')
-            ->get();
+        foreach ($tests as $test) {
+            // Get attempts for this test
+            $attempts = TestAttempt::where('test_id', $test->id)
+                ->where('student_id', $user->id)
+                ->whereIn('status', ['submitted', 'graded'])
+                ->orderBy('total_score', 'desc') // Get best score first
+                ->get();
 
-        $totalSeconds = 0;
-        foreach ($activities as $activity) {
-            $start = \Carbon\Carbon::parse($activity->started_at);
-            $end = \Carbon\Carbon::parse($activity->completed_at);
-            $totalSeconds += $end->diffInSeconds($start);
+            if ($attempts->isNotEmpty()) {
+                $testsTaken++;
+                $bestAttempt = $attempts->first();
+                
+                $score = $bestAttempt->total_score;
+                $maxScore = $test->total_points > 0 ? $test->total_points : 100; // Default to 100 if 0 to avoid division by zero
+
+                $totalScoreObtained += $score;
+                $totalMaxScorePossible += $maxScore;
+
+                $testDetails[] = [
+                    'test_id' => $test->id,
+                    'title' => $test->title,
+                    'attempts_count' => $attempts->count(),
+                    'best_score' => $score,
+                    'total_points' => $maxScore,
+                    'score_percentage' => round(($score / $maxScore) * 100, 1) . '%',
+                    'status' => 'Completed',
+                    'last_attempt_at' => $bestAttempt->submitted_at ? $bestAttempt->submitted_at->toIso8601String() : null,
+                ];
+            } else {
+                $testDetails[] = [
+                    'test_id' => $test->id,
+                    'title' => $test->title,
+                    'attempts_count' => 0,
+                    'best_score' => 0,
+                    'total_points' => $test->total_points,
+                    'score_percentage' => '0%',
+                    'status' => 'Not Attempted',
+                    'last_attempt_at' => null,
+                ];
+            }
         }
 
-        // Format duration
-        $hours = floor($totalSeconds / 3600);
-        $minutes = floor(($totalSeconds / 60) % 60);
+        // Calculate overall average score percentage for tests taken
+        // If we want "how good the student is", we might want average of percentages
+        $averageScorePercentage = 0;
+        if ($totalMaxScorePossible > 0) {
+            $averageScorePercentage = ($totalScoreObtained / $totalMaxScorePossible) * 100;
+        }
 
         return [
-            'total_time_spent' => "{$hours}h {$minutes}m",
+            'tests' => [
+                'total' => $totalTests,
+                'taken' => $testsTaken,
+                'completion_rate' => $totalTests > 0 ? round(($testsTaken / $totalTests) * 100, 2) . '%' : '0%',
+                'average_score_percentage' => round($averageScorePercentage, 2) . '%',
+                'details' => $testDetails
+            ]
         ];
     }
 }
